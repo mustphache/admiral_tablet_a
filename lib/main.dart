@@ -73,3 +73,4 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
+lib/core/session/day_session_model.dart
