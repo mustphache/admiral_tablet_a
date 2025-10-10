@@ -4,7 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../day_session_store.dart';
+import 'core/session/day_session_store.dart';
 
 class DaySessionGate extends StatelessWidget {
   final Widget child;
