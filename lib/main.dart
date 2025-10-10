@@ -13,7 +13,7 @@ void main() {
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  // لتغيير اللغة من أي ويدجت (يستعملها LangSwitcher)
+  /// لتغيير اللغة من أي ويدجت (يستعملها LangSwitcher)
   static void setLocale(BuildContext context, Locale newLocale) {
     final _MyAppState? state = context.findAncestorStateOfType<_MyAppState>();
     state?.setLocale(newLocale);
@@ -24,7 +24,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  Locale _locale = const Locale('en');
+  /// لو تحب اعتماد لغة النظام اتركها null
+  Locale? _locale = const Locale('en');
 
   void setLocale(Locale locale) {
     setState(() => _locale = locale);
@@ -41,22 +42,30 @@ class _MyAppState extends State<MyApp> {
           title: 'ADMIRAL — Tablet A',
           debugShowCheckedModeBanner: false,
 
-          // اللغات
+          // اللغات والترجمة
           locale: _locale,
-          supportedLocales: const [Locale('en'), Locale('fr'), Locale('ar')],
+          supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: const [
             AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
+          // fallback لو لغة الجهاز غير مدعومة
+          localeResolutionCallback: (deviceLocale, supported) {
+            if (deviceLocale == null) return supported.first;
+            for (final l in supported) {
+              if (l.languageCode == deviceLocale.languageCode) return l;
+            }
+            return supported.first;
+          },
 
-          // الثيمات
+          // الثيم
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
           themeMode: themeMode,
 
-          // الراوتر الموحد
+          // الراوتينغ
           onGenerateRoute: AppRoutes.onGenerateRoute,
           initialRoute: AppRoutes.login,
         );
