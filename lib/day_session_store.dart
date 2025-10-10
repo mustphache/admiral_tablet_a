@@ -4,7 +4,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'day_session_model.dart';
+import 'core/session/day_session_model.dart';
 
 class DaySessionStore extends ChangeNotifier {
   static const _kKey = 'day_session_state_v1';
