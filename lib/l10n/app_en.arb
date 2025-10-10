@@ -1,0 +1,14 @@
+﻿{
+  "@@locale": "en",
+  "appTitle": "ADMIRAL — Tablet A",
+  "login_title": "Sign in",
+  "login_username": "Username",
+  "login_password": "Password",
+  "login_cta": "Login",
+  "home_title": "Tablet A — Home",
+  "home_start_day": "Start day",
+  "home_purchases": "Purchases",
+  "home_expenses": "Expenses",
+  "home_wallet": "Wallet",
+  "home_end_of_day": "End of day"
+}

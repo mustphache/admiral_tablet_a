@@ -1,0 +1,14 @@
+﻿{
+  "@@locale": "ar",
+  "appTitle": "أدميرال - التابلت أ",
+  "login_title": "تسجيل الدخول",
+  "login_username": "اسم المستخدم",
+  "login_password": "كلمة المرور",
+  "login_cta": "دخول",
+  "home_title": "الصفحة الرئيسية",
+  "home_start_day": "بداية اليوم",
+  "home_purchases": "المشتريات",
+  "home_expenses": "المصاريف",
+  "home_wallet": "المحفظة",
+  "home_end_of_day": "نهاية اليوم"
+}

@@ -1,0 +1,14 @@
+﻿{
+  "@@locale": "fr",
+  "appTitle": "ADMIRAL — Tablette A",
+  "login_title": "Connexion",
+  "login_username": "Nom d’utilisateur",
+  "login_password": "Mot de passe",
+  "login_cta": "Se connecter",
+  "home_title": "Tablette A — Accueil",
+  "home_start_day": "Commencer la journée",
+  "home_purchases": "Achats",
+  "home_expenses": "Dépenses",
+  "home_wallet": "Portefeuille",
+  "home_end_of_day": "Fin de journée"
+}
