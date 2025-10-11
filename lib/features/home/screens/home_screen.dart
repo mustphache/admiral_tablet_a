@@ -25,9 +25,77 @@ class HomeScreen extends StatelessWidget {
       child: AppScaffold(
         title: 'ADMIRAL — Tablet A',
         actions: const [DayStatusIndicator()],
-        body: const _HomeGrid(),
+        body: const _HomeBody(),
       ),
     );
+  }
+}
+
+class _HomeBody extends StatelessWidget {
+  const _HomeBody();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: const [
+        _StatusBanner(), // ⬅️ الشريط الجديد
+        Expanded(child: _HomeGrid()),
+      ],
+    );
+  }
+}
+
+class _StatusBanner extends StatelessWidget {
+  const _StatusBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Consumer<DaySessionStore>(
+      builder: (_, store, __) {
+        final isOpen = store.state.isOpen;
+        final openedAt = store.state.openedAt;
+        final text = isOpen
+            ? (openedAt != null
+            ? 'اليوم مفتوح — منذ ${_hhmm(openedAt)}'
+            : 'اليوم مفتوح')
+            : 'اليوم مغلق — افتح يوم جديد أولًا';
+
+        return Container(
+          margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: cs.surfaceVariant,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: cs.outlineVariant),
+          ),
+          child: Row(
+            children: [
+              Icon(isOpen ? Icons.lock_open : Icons.lock_outline, size: 20),
+              const SizedBox(width: 8),
+              Expanded(child: Text(text)),
+              const SizedBox(width: 12),
+              FilledButton.tonal(
+                onPressed: () {
+                  // نذهب دائمًا لشاشة اليوم لتنفيذ فتح/غلق بشكل رسمي
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const DaySessionScreen()),
+                  );
+                },
+                child: Text(isOpen ? 'End day' : 'Start day'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  static String _hhmm(DateTime dt) {
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$h:$m';
   }
 }
 
