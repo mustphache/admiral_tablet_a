@@ -10,9 +10,6 @@ import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
 import 'package:admiral_tablet_a/data/models/wallet_movement_model.dart';
 
-// Routes
-import 'package:admiral_tablet_a/ui/app_routes.dart';
-
 enum _Filter { all, thisDay }
 
 class WalletMovementsScreen extends StatefulWidget {
@@ -29,10 +26,8 @@ class _WalletMovementsScreenState extends State<WalletMovementsScreen> {
   _Filter _filter = _Filter.all;
 
   List<WalletMovementModel> get _source {
-    // مبدئياً: نستخدم العناصر الموجودة في الكنترولر (مرتّبة أحدث أولاً)
     final items = List<WalletMovementModel>.from(_wallet.items)
       ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
     if (_filter == _Filter.thisDay && _day.isOpen && _day.current != null) {
       final id = _day.current!.id;
       return items.where((e) => e.dayId == id).toList();
@@ -40,30 +35,22 @@ class _WalletMovementsScreenState extends State<WalletMovementsScreen> {
     return items;
   }
 
-  double get _sumTotal =>
-      _source.fold(0.0, (s, e) => s + e.amount);
-
+  double get _sumTotal => _source.fold(0.0, (s, e) => s + e.amount);
   double get _sumIn =>
       _source.where((e) => e.amount > 0).fold(0.0, (s, e) => s + e.amount);
-
   double get _sumOut =>
       _source.where((e) => e.amount < 0).fold(0.0, (s, e) => s + e.amount.abs());
 
   @override
   Widget build(BuildContext context) {
     return DaySessionGate(
-      allowWhenClosed: true,
+      allowWhenClosed: true, // عرض فقط؛ متاح دائمًا
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Wallet Movements'),
           actions: const [DayStatusIndicator()],
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () =>
-              Navigator.of(context).pushNamed(AppRoutes.addWalletMovement),
-          icon: const Icon(Icons.add),
-          label: const Text('Add'),
-        ),
+        // ❌ لا يوجد FAB هنا — عرض فقط
         body: Column(
           children: [
             _FiltersBar(
@@ -143,9 +130,8 @@ class _TotalsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    TextStyle v([bool strong = false]) => TextStyle(
-      fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
-    );
+    TextStyle v([bool strong = false]) =>
+        TextStyle(fontWeight: strong ? FontWeight.w700 : FontWeight.w500);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
@@ -163,10 +149,7 @@ class _TotalsBar extends StatelessWidget {
   }
 
   static Widget _KV(String k, String v, TextStyle style) => Row(
-    children: [
-      Text('$k: ', style: style),
-      Text(v, style: style),
-    ],
+    children: [Text('$k: ', style: style), Text(v, style: style)],
   );
 
   static String _fmt(double x) =>
@@ -199,9 +182,8 @@ class _MovementTile extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final isIn = model.amount >= 0;
     final color = isIn ? cs.primary : cs.error;
-
-    final amountText = (isIn ? '+' : '-') +
-        model.amount.abs().toStringAsFixed(2);
+    final amountText =
+        (isIn ? '+' : '-') + model.amount.abs().toStringAsFixed(2);
 
     return ListTile(
       leading: CircleAvatar(
@@ -212,10 +194,7 @@ class _MovementTile extends StatelessWidget {
       subtitle: Text(model.timestamp.toLocal().toString().split('.').first),
       trailing: Text(
         amountText,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w700,
-        ),
+        style: TextStyle(color: color, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -235,12 +214,7 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 8),
           Text('لا توجد حركات بعد', style: TextStyle(color: cs.outline)),
           const SizedBox(height: 12),
-          TextButton.icon(
-            onPressed: () =>
-                Navigator.of(context).pushNamed(AppRoutes.addWalletMovement),
-            icon: const Icon(Icons.add),
-            label: const Text('إضافة أول حركة'),
-          ),
+          const Text('هذه شاشة عرض فقط'),
         ],
       ),
     );
