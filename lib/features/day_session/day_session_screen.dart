@@ -11,8 +11,9 @@ import 'package:admiral_tablet_a/data/models/outbox_item_model.dart';
 import 'package:admiral_tablet_a/data/models/wallet_movement_model.dart';
 import 'package:admiral_tablet_a/data/models/day_session_model.dart';
 
-// ✅ تزامن مع Gate
+// ✅ session system
 import 'package:admiral_tablet_a/core/session/index.dart';
+import 'package:admiral_tablet_a/core/session/day_status_indicator.dart';
 
 class DaySessionScreen extends StatefulWidget {
   const DaySessionScreen({super.key});
@@ -48,7 +49,7 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
   }
 
   Future _init() async {
-    // ✅ حمّل حالة الـ Gate حتى تكون متزامنة مع الشاشة
+    // sync gate state
     await DaySessionStore().load();
 
     await _ctrl.restore();
@@ -73,7 +74,6 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
 
     setState(() => _busy = true);
 
-    // ✅ التثبيت: لا نكرّر قيد Opening Cash، ونقيد الفرق فقط عند تغييره
     final wasOpen = _ctrl.isOpen;
     final prevOpening = _ctrl.current?.openingCash ?? 0;
 
@@ -84,7 +84,6 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
     );
 
     if (!wasOpen) {
-      // أول مرة اليوم يتفتح
       await _wallet.addMovement(
         dayId: _ctrl.current!.id,
         type: WalletType.open,
@@ -92,7 +91,6 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
         note: 'Opening cash',
       );
     } else if (opening != prevOpening) {
-      // اليوم كان مفتوح وتغيّر الرصيد الافتتاحي -> سجّل فرق فقط
       final delta = opening - prevOpening;
       if (delta != 0) {
         await _wallet.addMovement(
@@ -104,7 +102,6 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
       }
     }
 
-    // ✅ أخبر Gate أن اليوم مفتوح الآن
     await DaySessionStore().openDay();
 
     await _refreshTotals();
@@ -133,14 +130,12 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
 
     setState(() => _busy = true);
     try {
-      // 1) Snapshot JSON
       final json = await _snapshot.buildDayJson(
         day: _ctrl,
         purchases: _pCtrl,
         expenses: _eCtrl,
       );
 
-      // 2) Outbox
       await _outbox.add(OutboxItemModel(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
         kind: 'snapshot',
@@ -149,7 +144,6 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
         createdAt: DateTime.now().toUtc(),
       ));
 
-      // 3) حركة محفظة للرصيد النهائي
       await _wallet.addMovement(
         dayId: id,
         type: WalletType.adjust,
@@ -157,10 +151,7 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
         note: 'End of day balance',
       );
 
-      // 4) إغلاق الجلسة (النظام الداخلي)
       await _ctrl.closeSession();
-
-      // ✅ أخبر Gate أن اليوم مغلق الآن
       await DaySessionStore().closeDay();
 
       if (!mounted) return;
@@ -202,7 +193,6 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
     _sumPurchases = 0;
     _sumExpenses = 0;
 
-    // ✅ بعد المسح المحلي، خليه يعتبر مغلق محلّياً (للـ Gate)
     await DaySessionStore().closeDay();
 
     setState(() => _busy = false);
@@ -279,22 +269,11 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isOpen = _ctrl.isOpen;
     final id = _ctrl.current?.id;
 
     return AppScaffold(
       title: 'جلسة اليوم',
-      actions: [
-        if (isOpen)
-          Padding(
-            padding: const EdgeInsetsDirectional.only(end: 8),
-            child: Chip(
-              label: Text('مفتوحة: ${id ?? ''}'),
-              backgroundColor: cs.primaryContainer,
-            ),
-          )
-      ],
+      actions: const [DayStatusIndicator()],
       body: _busy
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -346,7 +325,7 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
                 height: 48,
                 child: FilledButton(
                   onPressed: _busy ? null : _open,
-                  child: Text(isOpen ? 'تحديث اليوم' : 'فتح اليوم'),
+                  child: Text(_ctrl.isOpen ? 'تحديث اليوم' : 'فتح اليوم'),
                 ),
               ),
               const SizedBox(height: 8),
@@ -354,7 +333,7 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: (!isOpen || _busy) ? null : _close,
+                      onPressed: (!_ctrl.isOpen || _busy) ? null : _close,
                       icon: const Icon(Icons.flag_circle),
                       label: const Text('إغلاق اليوم'),
                     ),
