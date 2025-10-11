@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
-import '../../../ui/app_routes.dart';
+import 'package:admiral_tablet_a/ui/app_routes.dart';
 
-// ✅ جلسة اليوم: Gate + الشارة
+// Gate + الشارة
 import 'package:admiral_tablet_a/core/session/index.dart';
 import 'package:admiral_tablet_a/core/session/day_status_indicator.dart';
 
-/// من features/wallet/screens إلى ui = ../../../
 class WalletMovementsScreen extends StatelessWidget {
   const WalletMovementsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // المحفظة تبقى متاحة دائمًا
     return DaySessionGate(
       allowWhenClosed: true,
       child: Scaffold(
@@ -20,10 +18,10 @@ class WalletMovementsScreen extends StatelessWidget {
           actions: const [DayStatusIndicator()],
         ),
         body: Center(
-          child: ElevatedButton(
-            onPressed: () =>
-                Navigator.of(context).pushNamed(AppRoutes.walletMovementAdd),
-            child: const Text('Add Movement'),
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.add),
+            label: const Text('Add Movement'),
+            onPressed: () => Navigator.of(context).pushNamed(AppRoutes.addWalletMovement),
           ),
         ),
       ),
