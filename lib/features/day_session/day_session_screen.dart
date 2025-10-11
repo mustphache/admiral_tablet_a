@@ -10,6 +10,7 @@ import 'package:admiral_tablet_a/state/services/outbox_service.dart';
 import 'package:admiral_tablet_a/data/models/outbox_item_model.dart';
 import 'package:admiral_tablet_a/data/models/wallet_movement_model.dart';
 import 'package:admiral_tablet_a/data/models/day_session_model.dart';
+import 'package:admiral_tablet_a/core/session/index.dart';
 
 class DaySessionScreen extends StatefulWidget {
   const DaySessionScreen({super.key});
