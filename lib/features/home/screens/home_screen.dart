@@ -14,6 +14,12 @@ import 'package:admiral_tablet_a/features/day_session/purchases_screen.dart';
 import 'package:admiral_tablet_a/features/day_session/expenses_screen.dart';
 import 'package:admiral_tablet_a/features/wallet/screens/wallet_screen.dart';
 
+// ✅ صندوق الرصيد الوارد
+import 'package:admiral_tablet_a/state/services/credit_inbox_store.dart';
+// ✅ محفظة
+import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
+import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -31,36 +37,50 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _HomeBody extends StatelessWidget {
+class _HomeBody extends StatefulWidget {
   const _HomeBody();
 
   @override
+  State<_HomeBody> createState() => _HomeBodyState();
+}
+
+class _HomeBodyState extends State<_HomeBody> {
+  final _inbox = CreditInboxStore();
+
+  @override
+  void initState() {
+    super.initState();
+    _inbox.load(); // حمل الصندوق
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Column(
-      children: const [
-        _StatusBanner(), // ⬅️ الشريط الجديد
-        Expanded(child: _HomeGrid()),
-      ],
+    return ChangeNotifierProvider<CreditInboxStore>.value(
+      value: _inbox,
+      child: Column(
+        children: const [
+          _CreditBanner(),  // ⬅️ الشريط الجديد
+          Expanded(child: _HomeGrid()),
+        ],
+      ),
     );
   }
 }
 
-class _StatusBanner extends StatelessWidget {
-  const _StatusBanner();
+class _CreditBanner extends StatelessWidget {
+  const _CreditBanner();
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Consumer<DaySessionStore>(
-      builder: (_, store, __) {
-        final isOpen = store.state.isOpen;
-        final openedAt = store.state.openedAt;
-        final text = isOpen
-            ? (openedAt != null
-            ? 'اليوم مفتوح — منذ ${_hhmm(openedAt)}'
-            : 'اليوم مفتوح')
-            : 'اليوم مغلق — افتح يوم جديد أولًا';
+    return Consumer<CreditInboxStore>(
+      builder: (_, inbox, __) {
+        final total = inbox.pendingTotal;
+        if (total <= 0) {
+          // لا يوجد رصيد وارد معلّق
+          return const SizedBox(height: 8);
+        }
 
         return Container(
           margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -72,30 +92,41 @@ class _StatusBanner extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(isOpen ? Icons.lock_open : Icons.lock_outline, size: 20),
+              const Icon(Icons.notifications_active, size: 20),
               const SizedBox(width: 8),
-              Expanded(child: Text(text)),
+              Expanded(
+                child: Text('رصيد وارد: ${total.toStringAsFixed(2)} دج — تأكيد لإضافته'),
+              ),
               const SizedBox(width: 12),
               FilledButton.tonal(
-                onPressed: () {
-                  // نذهب دائمًا لشاشة اليوم لتنفيذ فتح/غلق بشكل رسمي
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const DaySessionScreen()),
-                  );
+                onPressed: () async {
+                  final dayCtrl = DaySessionController();
+                  final wallet = WalletController();
+
+                  if (dayCtrl.isOpen && dayCtrl.current != null) {
+                    // اليوم مفتوح -> أضف كرَصيد للمحفظة تحت dayId الحالي
+                    await wallet.addCredit(
+                      dayId: dayCtrl.current!.id,
+                      amount: total,
+                      note: 'Incoming credit (confirmed)',
+                    );
+                  }
+                  // امسح الصندوق (في كل الأحوال)
+                  await inbox.clear();
+
+                  if (Navigator.canPop(context)) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('تم تأكيد الرصيد الوارد')),
+                    );
+                  }
                 },
-                child: Text(isOpen ? 'End day' : 'Start day'),
+                child: const Text('تأكيد'),
               ),
             ],
           ),
         );
       },
     );
-  }
-
-  static String _hhmm(DateTime dt) {
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    return '$h:$m';
   }
 }
 
