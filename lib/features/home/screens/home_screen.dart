@@ -1,4 +1,5 @@
 ﻿// lib/features/home/screens/home_screen.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -14,9 +15,9 @@ import 'package:admiral_tablet_a/features/day_session/purchases_screen.dart';
 import 'package:admiral_tablet_a/features/day_session/expenses_screen.dart';
 import 'package:admiral_tablet_a/features/wallet/screens/wallet_screen.dart';
 
-// ✅ صندوق الرصيد الوارد
+// صندوق الرصيد الوارد
 import 'package:admiral_tablet_a/state/services/credit_inbox_store.dart';
-// ✅ محفظة
+// محفظة + يوم
 import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 
@@ -59,7 +60,7 @@ class _HomeBodyState extends State<_HomeBody> {
       value: _inbox,
       child: Column(
         children: const [
-          _CreditBanner(),  // ⬅️ الشريط الجديد
+          _CreditBanner(),  // ⬅️ الشريط + زر التطوير
           Expanded(child: _HomeGrid()),
         ],
       ),
@@ -77,11 +78,43 @@ class _CreditBanner extends StatelessWidget {
     return Consumer<CreditInboxStore>(
       builder: (_, inbox, __) {
         final total = inbox.pendingTotal;
+
+        // --- حالة بدون رصيد معلّق ---
         if (total <= 0) {
-          // لا يوجد رصيد وارد معلّق
+          // في التطوير فقط: صندوق صغير لحقن رصيد وارد للتجريب
+          if (kDebugMode) {
+            return Container(
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: cs.surfaceVariant,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: cs.outlineVariant),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.construction, size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Dev: Inject incoming credit for testing',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _devAddCreditDialog(context),
+                    icon: const Icon(Icons.add_card),
+                    label: const Text('Inject credit (dev)'),
+                  ),
+                ],
+              ),
+            );
+          }
+          // لا شيء يظهر في الإنتاج
           return const SizedBox(height: 8);
         }
 
+        // --- حالة وجود رصيد معلّق ---
         return Container(
           margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           padding: const EdgeInsets.all(12),
@@ -95,7 +128,9 @@ class _CreditBanner extends StatelessWidget {
               const Icon(Icons.notifications_active, size: 20),
               const SizedBox(width: 8),
               Expanded(
-                child: Text('رصيد وارد: ${total.toStringAsFixed(2)} دج — تأكيد لإضافته'),
+                child: Text(
+                  'رصيد وارد: ${total.toStringAsFixed(2)} دج — اضغط تأكيد لإضافته',
+                ),
               ),
               const SizedBox(width: 12),
               FilledButton.tonal(
@@ -122,11 +157,79 @@ class _CreditBanner extends StatelessWidget {
                 },
                 child: const Text('تأكيد'),
               ),
+              if (kDebugMode) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: 'Inject more (dev)',
+                  onPressed: () => _devAddCreditDialog(context),
+                  icon: const Icon(Icons.add_card),
+                ),
+              ],
             ],
           ),
         );
       },
     );
+  }
+
+  /// حوار إدخال رصيد وارد (للتطوير فقط)
+  static Future<void> _devAddCreditDialog(BuildContext context) async {
+    final amountCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Inject incoming credit (dev)'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: amountCtrl,
+              keyboardType:
+              const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Amount (DZD)',
+                hintText: 'مثال: 200000',
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: noteCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Note (optional)',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok == true) {
+      final v = double.tryParse(amountCtrl.text.trim()) ?? 0;
+      final note = noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim();
+      if (v > 0) {
+        final inbox = Provider.of<CreditInboxStore>(context, listen: false);
+        await inbox.addPending(v, note: note);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Injected ${v.toStringAsFixed(2)} DZD (dev)')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid amount')),
+        );
+      }
+    }
   }
 }
 
