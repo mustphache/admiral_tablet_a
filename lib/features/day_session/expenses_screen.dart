@@ -3,8 +3,9 @@ import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/expense_controller.dart';
 import 'expense_add_screen.dart';
 
-// ✅ Gate
+// Gate + Indicator
 import 'package:admiral_tablet_a/core/session/index.dart';
+import 'package:admiral_tablet_a/core/session/day_status_indicator.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -38,9 +39,7 @@ class _ExpensesScreenState extends State {
     }
 
     final added = await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const ExpenseAddScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const ExpenseAddScreen()),
     );
     if (added == true) {
       await _ctrl.restore();
@@ -59,9 +58,11 @@ class _ExpensesScreenState extends State {
     final items = _ctrl.items.reversed.toList();
 
     return DaySessionGate(
-      // Expenses تتقفل لما اليوم مغلق
       child: Scaffold(
-        appBar: AppBar(title: const Text('Expenses')),
+        appBar: AppBar(
+          title: const Text('Expenses'),
+          actions: const [DayStatusIndicator()],
+        ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: _add,
           icon: const Icon(Icons.add),
@@ -78,24 +79,20 @@ class _ExpensesScreenState extends State {
               leading: const Icon(Icons.money_off),
               title: Text(e.kind ?? 'نوع المصروف؟'),
               subtitle: Text(e.note ?? ''),
-              trailing:
-              Text('${(e.amount ?? 0).toStringAsFixed(2)} دج'),
+              trailing: Text('${(e.amount ?? 0).toStringAsFixed(2)} دج'),
               onLongPress: () async {
                 final ok = await showDialog(
                   context: context,
                   builder: (_) => AlertDialog(
                     title: const Text('Delete expense?'),
-                    content:
-                    const Text('This action cannot be undone.'),
+                    content: const Text('This action cannot be undone.'),
                     actions: [
                       TextButton(
-                        onPressed: () =>
-                            Navigator.pop(context, false),
+                        onPressed: () => Navigator.pop(context, false),
                         child: const Text('Cancel'),
                       ),
                       FilledButton(
-                        onPressed: () =>
-                            Navigator.pop(context, true),
+                        onPressed: () => Navigator.pop(context, true),
                         child: const Text('Delete'),
                       ),
                     ],
