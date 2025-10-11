@@ -1,34 +1,48 @@
-// lib/core/session/day_session_store.dart
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'day_session_model.dart';
 
-/// حافظة حالة (State) للجلسة الحالية.
-/// تعتمد ChangeNotifier، لذلك أي مستمعين (Widgets) سيُعاد بناؤهم عند التغيير.
 class DaySessionStore extends ChangeNotifier {
-  DaySessionModel? _current;
+  static const _kKey = 'day_session_state_v1';
 
-  DaySessionModel? get current => _current;
-  bool get hasSession => _current != null;
+  DaySessionState _state = DaySessionState.closed();
+  DaySessionState get state => _state;
 
-  /// تعيين جلسة جديدة.
-  void setSession(DaySessionModel model) {
-    _current = model;
+  static final DaySessionStore _instance = DaySessionStore._internal();
+  DaySessionStore._internal();
+  factory DaySessionStore() => _instance;
+
+  Future<void> load() async {
+    final sp = await SharedPreferences.getInstance();
+    final raw = sp.getString(_kKey);
+    if (raw == null) {
+      _state = DaySessionState.closed();
+      return;
+    }
+    try {
+      final Map<String, dynamic> map = json.decode(raw) as Map<String, dynamic>;
+      _state = DaySessionState.fromJson(map);
+    } catch (_) {
+      _state = DaySessionState.closed();
+    }
     notifyListeners();
   }
 
-  /// تعديل الجلسة الحالية عبر copyWith.
-  void update({
-    DateTime? date,
-    List<String>? items,
-  }) {
-    if (_current == null) return;
-    _current = _current!.copyWith(date: date, items: items);
+  Future<void> _save() async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString(_kKey, json.encode(_state.toJson()));
+  }
+
+  Future<void> openDay() async {
+    _state = DaySessionState.openedNow();
+    await _save();
     notifyListeners();
   }
 
-  /// مسح الجلسة.
-  void clear() {
-    _current = null;
+  Future<void> closeDay() async {
+    _state = DaySessionState.closed();
+    await _save();
     notifyListeners();
   }
 }
