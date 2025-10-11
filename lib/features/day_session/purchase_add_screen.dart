@@ -3,15 +3,17 @@ import 'package:admiral_tablet_a/data/models/purchase_model.dart';
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/purchase_controller.dart';
 
+// ✅ Gate للنظام
+import 'package:admiral_tablet_a/core/session/index.dart';
 
 class PurchaseAddScreen extends StatefulWidget {
   const PurchaseAddScreen({super.key});
 
   @override
-  State<PurchaseAddScreen> createState() => _PurchaseAddScreenState();
+  State createState() => _PurchaseAddScreenState();
 }
 
-class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
+class _PurchaseAddScreenState extends State {
   final _form = GlobalKey<FormState>();
 
   final _supplier = TextEditingController();
@@ -32,14 +34,13 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
     super.dispose();
   }
 
-  Future<void> _save() async {
+  Future _save() async {
     if (!_form.currentState!.validate()) return;
-
     setState(() => _busy = true);
     try {
       final day = DaySessionController();
 
-      // حماية: لا تسمح بالحفظ إذا اليوم مغلق
+      // حماية إضافية: منع الحفظ إذا اليوم مغلق (زيادة على Gate)
       if (!day.isOpen) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -81,72 +82,78 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('إضافة شراء'),
-      ),
-      body: Form(
-        key: _form,
-        child: ListView(
-          padding: const EdgeInsets.all(12),
-          children: [
-            TextFormField(
-              controller: _supplier,
-              decoration: const InputDecoration(labelText: 'المورّد'),
-              textInputAction: TextInputAction.next,
-              validator: (v) =>
-              (v == null || v.trim().isEmpty) ? 'أدخل المورّد' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _tagNumber,
-              decoration: const InputDecoration(labelText: 'رقم الكاتم'),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _price,
-              decoration: const InputDecoration(labelText: 'السعر'),
-              keyboardType:
-              const TextInputType.numberWithOptions(decimal: true),
-              textInputAction: TextInputAction.next,
-              validator: (v) {
-                final n = double.tryParse((v ?? '').trim());
-                if (n == null || n <= 0) return 'أدخل سعرًا صحيحًا';
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _count,
-              decoration: const InputDecoration(labelText: 'العدد'),
-              keyboardType: TextInputType.number,
-              textInputAction: TextInputAction.next,
-              validator: (v) {
-                final n = int.tryParse((v ?? '').trim());
-                if (n == null || n <= 0) return 'أدخل عددًا صحيحًا';
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _note,
-              decoration: const InputDecoration(labelText: 'ملاحظات (اختياري)'),
-              minLines: 1,
-              maxLines: 3,
-            ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: _busy ? null : _save,
-              icon: const Icon(Icons.save),
-              label: _busy ? const Text('جارٍ الحفظ…') : const Text('حفظ'),
-            ),
-            const SizedBox(height: 8),
-            if (_busy)
-              LinearProgressIndicator(
-                backgroundColor: cs.surfaceVariant,
+    // ✅ لف الشاشة بالـGate (تُمنع تلقائيًا إذا اليوم مغلق)
+    return DaySessionGate(
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('إضافة شراء'),
+        ),
+        body: Form(
+          key: _form,
+          child: ListView(
+            padding: const EdgeInsets.all(12),
+            children: [
+              TextFormField(
+                controller: _supplier,
+                decoration: const InputDecoration(labelText: 'المورّد'),
+                textInputAction: TextInputAction.next,
+                validator: (v) =>
+                (v == null || v.trim().isEmpty) ? 'أدخل المورّد' : null,
               ),
-          ],
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _tagNumber,
+                decoration: const InputDecoration(labelText: 'رقم الكاتم'),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _price,
+                decoration: const InputDecoration(labelText: 'السعر'),
+                keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+                textInputAction: TextInputAction.next,
+                validator: (v) {
+                  final n = double.tryParse((v ?? '').trim());
+                  if (n == null || n <= 0) return 'أدخل سعرًا صحيحًا';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _count,
+                decoration: const InputDecoration(labelText: 'العدد'),
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.next,
+                validator: (v) {
+                  final n = int.tryParse((v ?? '').trim());
+                  if (n == null || n <= 0) return 'أدخل عددًا صحيحًا';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _note,
+                decoration:
+                const InputDecoration(labelText: 'ملاحظات (اختياري)'),
+                minLines: 1,
+                maxLines: 3,
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: _busy ? null : _save,
+                icon: const Icon(Icons.save),
+                label: _busy
+                    ? const Text('جارٍ الحفظ…')
+                    : const Text('حفظ'),
+              ),
+              const SizedBox(height: 8),
+              if (_busy)
+                LinearProgressIndicator(
+                  backgroundColor: cs.surfaceVariant,
+                ),
+            ],
+          ),
         ),
       ),
     );
