@@ -5,6 +5,8 @@ import 'package:admiral_tablet_a/state/controllers/expense_controller.dart';
 
 // ✅ Gate للنظام
 import 'package:admiral_tablet_a/core/session/index.dart';
+// ✅ محفظة
+import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
 
 class ExpenseAddScreen extends StatefulWidget {
   const ExpenseAddScreen({super.key});
@@ -36,8 +38,7 @@ class _ExpenseAddScreenState extends State {
     try {
       final day = DaySessionController();
 
-      // حماية إضافية: منع الحفظ إذا اليوم مغلق (زيادة على Gate)
-      if (!day.isOpen) {
+      if (!day.isOpen || day.current == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('اليوم مغلق — افتح يوم جديد أولًا')),
@@ -48,7 +49,7 @@ class _ExpenseAddScreenState extends State {
       final amount = double.tryParse(_amount.text.trim()) ?? 0;
       final m = ExpenseModel(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
-        sessionId: day.current!.id, // مهم جدًا
+        sessionId: day.current!.id,
         kind: _kind.text.trim(),
         amount: amount,
         note: _note.text.trim().isEmpty ? null : _note.text.trim(),
@@ -56,6 +57,13 @@ class _ExpenseAddScreenState extends State {
       );
 
       await ExpenseController().add(m);
+
+      // ✅ خصم تلقائي من المحفظة
+      await WalletController().addSpendExpense(
+        dayId: day.current!.id,
+        amount: amount,
+        note: 'Expense: ${_kind.text.trim()}',
+      );
 
       if (!mounted) return;
       Navigator.pop(context, true);
@@ -72,7 +80,6 @@ class _ExpenseAddScreenState extends State {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    // ✅ لف الشاشة بالـGate (تُمنع تلقائيًا إذا اليوم مغلق)
     return DaySessionGate(
       child: Scaffold(
         appBar: AppBar(
