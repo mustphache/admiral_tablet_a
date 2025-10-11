@@ -1,10 +1,11 @@
 ﻿import 'package:flutter/material.dart';
-import '../../state/controllers/purchase_controller.dart';
-import 'purchase_add_screen.dart';
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
+import 'package:admiral_tablet_a/state/controllers/purchase_controller.dart';
+import 'purchase_add_screen.dart';
 
-// ✅ Gate
+// Gate + Indicator
 import 'package:admiral_tablet_a/core/session/index.dart';
+import 'package:admiral_tablet_a/core/session/day_status_indicator.dart';
 
 class PurchasesScreen extends StatefulWidget {
   const PurchasesScreen({super.key});
@@ -43,17 +44,13 @@ class _PurchasesScreenState extends State {
     final day = DaySessionController();
 
     return DaySessionGate(
-      // Purchases تتقفل لما اليوم مغلق
       child: Scaffold(
         appBar: AppBar(
           title: const Text('المشتريات'),
-          actions: [
-            IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
-          ],
+          actions: const [DayStatusIndicator()],
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () async {
-            // فحص إضافي (حتى لو Gate موجود) لتجربة أوضح للمستخدم
             if (!day.isOpen) {
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
@@ -61,7 +58,6 @@ class _PurchasesScreenState extends State {
               );
               return;
             }
-
             final res = await Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const PurchaseAddScreen()),
             );
