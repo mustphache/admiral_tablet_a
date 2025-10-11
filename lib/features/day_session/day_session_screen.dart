@@ -11,7 +11,7 @@ import 'package:admiral_tablet_a/data/models/outbox_item_model.dart';
 import 'package:admiral_tablet_a/data/models/wallet_movement_model.dart';
 import 'package:admiral_tablet_a/data/models/day_session_model.dart';
 
-// ✅ session system
+// جلسة اليوم (Gate + Indicator + Store)
 import 'package:admiral_tablet_a/core/session/index.dart';
 import 'package:admiral_tablet_a/core/session/day_status_indicator.dart';
 
@@ -49,18 +49,28 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
   }
 
   Future _init() async {
-    // sync gate state
+    // 1) حمّل حالة الـStore
     await DaySessionStore().load();
 
+    // 2) استرجع حالة الـController
     await _ctrl.restore();
     final s = _ctrl.current;
+
     if (s != null) {
       _marketCtrl.text = s.market;
       _cashCtrl.text = s.openingCash.toStringAsFixed(2);
       _notesCtrl.text = s.notes ?? '';
     }
+
+    // 3) مزامنة صارمة: Store <-> Controller
+    if (_ctrl.isOpen) {
+      await DaySessionStore().openDay();   // يضمن الشارة/البوابة = مفتوح
+    } else {
+      await DaySessionStore().closeDay();  // يضمن الشارة/البوابة = مغلق
+    }
+
     await _refreshTotals();
-    setState(() => _busy = false);
+    if (mounted) setState(() => _busy = false);
   }
 
   Future _open() async {
@@ -102,6 +112,7 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
       }
     }
 
+    // مزامنة بعد الفتح
     await DaySessionStore().openDay();
 
     await _refreshTotals();
@@ -152,6 +163,8 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
       );
 
       await _ctrl.closeSession();
+
+      // مزامنة بعد الإغلاق
       await DaySessionStore().closeDay();
 
       if (!mounted) return;
@@ -193,6 +206,7 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
     _sumPurchases = 0;
     _sumExpenses = 0;
 
+    // بعد المسح: اعتبرها مغلقة محليًا
     await DaySessionStore().closeDay();
 
     setState(() => _busy = false);
@@ -271,86 +285,90 @@ class _DaySessionScreenState extends State<DaySessionScreen> {
   Widget build(BuildContext context) {
     final id = _ctrl.current?.id;
 
-    return AppScaffold(
-      title: 'جلسة اليوم',
-      actions: const [DayStatusIndicator()],
-      body: _busy
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _form,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'تاريخ اليوم: ${id ?? todayISO()}',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _marketCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'السوق / الوجهة',
-                  hintText: 'مثال: سوق الثلاثاء',
+    // ✅ لفّ الشاشة كلها بالـGate لتوفير الـProvider للشارة
+    return DaySessionGate(
+      allowWhenClosed: true,
+      child: AppScaffold(
+        title: 'جلسة اليوم',
+        actions: const [DayStatusIndicator()],
+        body: _busy
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Form(
+            key: _form,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'تاريخ اليوم: ${id ?? todayISO()}',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-                validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'أدخل اسم السوق' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _cashCtrl,
-                keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'رأس مال البداية (دج)',
-                  hintText: 'مثال: 1500000',
-                ),
-                validator: (v) {
-                  final x = double.tryParse((v ?? '').replaceAll(',', '.'));
-                  if (x == null) return 'قيمة غير صحيحة';
-                  if (x < 0) return 'لا يمكن أن يكون سالبًا';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _notesCtrl,
-                maxLines: 3,
-                decoration:
-                const InputDecoration(labelText: 'ملاحظات (اختياري)'),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 48,
-                child: FilledButton(
-                  onPressed: _busy ? null : _open,
-                  child: Text(_ctrl.isOpen ? 'تحديث اليوم' : 'فتح اليوم'),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: (!_ctrl.isOpen || _busy) ? null : _close,
-                      icon: const Icon(Icons.flag_circle),
-                      label: const Text('إغلاق اليوم'),
-                    ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _marketCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'السوق / الوجهة',
+                    hintText: 'مثال: سوق الثلاثاء',
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _busy ? null : _wipe,
-                      icon: const Icon(Icons.delete_forever),
-                      label: const Text('مسح البيانات'),
-                    ),
+                  validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'أدخل اسم السوق' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _cashCtrl,
+                  keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'رأس مال البداية (دج)',
+                    hintText: 'مثال: 1500000',
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (_ctrl.current != null) _summaryCard(),
-            ],
+                  validator: (v) {
+                    final x = double.tryParse((v ?? '').replaceAll(',', '.'));
+                    if (x == null) return 'قيمة غير صحيحة';
+                    if (x < 0) return 'لا يمكن أن يكون سالبًا';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _notesCtrl,
+                  maxLines: 3,
+                  decoration:
+                  const InputDecoration(labelText: 'ملاحظات (اختياري)'),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: _busy ? null : _open,
+                    child: Text(_ctrl.isOpen ? 'تحديث اليوم' : 'فتح اليوم'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: (!_ctrl.isOpen || _busy) ? null : _close,
+                        icon: const Icon(Icons.flag_circle),
+                        label: const Text('إغلاق اليوم'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _busy ? null : _wipe,
+                        icon: const Icon(Icons.delete_forever),
+                        label: const Text('مسح البيانات'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (_ctrl.current != null) _summaryCard(),
+              ],
+            ),
           ),
         ),
       ),
