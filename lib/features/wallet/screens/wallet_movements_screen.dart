@@ -26,8 +26,9 @@ class _WalletMovementsScreenState extends State<WalletMovementsScreen> {
   _Filter _filter = _Filter.all;
 
   List<WalletMovementModel> get _source {
-    final items = List<WalletMovementModel>.from(_wallet.items)
-      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    // لا يوجد timestamp في الموديل، فنكتفي بترتيب الإدراج (أحدث مُضافة في النهاية) ثم نعكس
+    final items = List<WalletMovementModel>.from(_wallet.items).reversed.toList();
+
     if (_filter == _Filter.thisDay && _day.isOpen && _day.current != null) {
       final id = _day.current!.id;
       return items.where((e) => e.dayId == id).toList();
@@ -50,7 +51,7 @@ class _WalletMovementsScreenState extends State<WalletMovementsScreen> {
           title: const Text('Wallet Movements'),
           actions: const [DayStatusIndicator()],
         ),
-        // ❌ لا يوجد FAB هنا — عرض فقط
+        // عرض فقط — لا يوجد FAB
         body: Column(
           children: [
             _FiltersBar(
@@ -71,8 +72,7 @@ class _WalletMovementsScreenState extends State<WalletMovementsScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 itemCount: _source.length,
                 separatorBuilder: (_, __) => const Divider(height: 0),
-                itemBuilder: (ctx, i) =>
-                    _MovementTile(model: _source[i]),
+                itemBuilder: (ctx, i) => _MovementTile(model: _source[i]),
               ),
             ),
           ],
@@ -191,7 +191,8 @@ class _MovementTile extends StatelessWidget {
         child: Icon(_iconFor(model.type), color: cs.onSurfaceVariant),
       ),
       title: Text(model.note?.isNotEmpty == true ? model.note! : model.type.name),
-      subtitle: Text(model.timestamp.toLocal().toString().split('.').first),
+      // لا يوجد timestamp في الموديل؛ نعرض dayId كمرجع
+      subtitle: Text('Day: ${model.dayId}'),
       trailing: Text(
         amountText,
         style: TextStyle(color: color, fontWeight: FontWeight.w700),
