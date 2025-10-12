@@ -22,7 +22,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
 
   String get _todayId => TimeFmt.dayIdToday();
 
-  void _reload() {
+  Future<void> _reload() async {
     _items = _ctrl.listByDay(_todayId);
     setState(() => _loading = false);
   }
@@ -30,7 +30,6 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
   @override
   void initState() {
     super.initState();
-    // ✅ حمّل البيانات قبل العرض
     PurchaseController().load().then((_) => mounted ? _reload() : null);
   }
 
@@ -53,7 +52,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
           return Scaffold(
             appBar: AppBar(title: const Text('Purchases')),
             body: RefreshIndicator(
-              onRefresh: () async => _reload(),
+              onRefresh: _reload,
               child: _items.isEmpty
                   ? ListView(
                 children: [
@@ -68,9 +67,77 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
               )
                   : ListView.separated(
                 padding: const EdgeInsets.all(12),
-                itemBuilder: (_, i) => _PurchaseTile(_items[i]),
-                separatorBuilder: (_, __) => const Divider(height: 4),
                 itemCount: _items.length,
+                separatorBuilder: (_, __) => const Divider(height: 4),
+                itemBuilder: (_, i) {
+                  final m = _items[i];
+                  return Dismissible(
+                    key: ValueKey('p_${m.id}'),
+                    direction: canWrite
+                        ? DismissDirection.endToStart
+                        : DismissDirection.none,
+                    background: Container(
+                      color: cs.errorContainer,
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Icon(Icons.delete, color: cs.onErrorContainer),
+                    ),
+                    confirmDismiss: (_) async {
+                      if (!canWrite) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Session OFF — الحذف ممنوع'),
+                          ),
+                        );
+                        return false;
+                      }
+                      return await showDialog<bool>(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          title: const Text('حذف شراء'),
+                          content: const Text('تأكيد حذف هذه العملية؟ سيتم عكس أثرها على المحفظة.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(c, false),
+                              child: const Text('إلغاء'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(c, true),
+                              child: const Text('حذف'),
+                            ),
+                          ],
+                        ),
+                      ) ??
+                          false;
+                    },
+                    onDismissed: (_) async {
+                      await _ctrl.removeById(m.id);
+                      await _reload();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('تم الحذف')),
+                        );
+                      }
+                    },
+                    child: InkWell(
+                      onTap: () async {
+                        if (!canWrite) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Session OFF — التعديل ممنوع')),
+                          );
+                          return;
+                        }
+                        final ok = await Navigator.of(context).push<bool>(
+                          MaterialPageRoute(
+                            builder: (_) => PurchaseAddScreen(edit: m),
+                          ),
+                        );
+                        if (ok == true) _reload();
+                      },
+                      child: _PurchaseTile(m),
+                    ),
+                  );
+                },
               ),
             ),
             floatingActionButton: FloatingActionButton.extended(
