@@ -1,6 +1,7 @@
 ﻿import 'package:admiral_tablet_a/data/models/purchase_model.dart';
 import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
 import 'package:admiral_tablet_a/state/services/kv_store.dart';
+import 'package:admiral_tablet_a/data/models/wallet_movement_model.dart';
 
 class PurchaseController {
   PurchaseController._internal();
