@@ -96,7 +96,7 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
           timestamp: old.timestamp,
         );
         final String oldId = old.id; // تعريف صريح يزيل أي التباس
-        await PurchaseController().update(id: oldId, updated: updated);
+        await PurchaseController().update(id: old.id.toString(), updated: updated);
       }
 
       if (!mounted) return;
