@@ -1,112 +1,90 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
-import 'package:admiral_tablet_a/state/controllers/expense_controller.dart';
-import 'expense_add_screen.dart';
+import 'package:admiral_tablet_a/features/day_session/expense_add_screen.dart';
 
-// Gate + Indicator
-import 'package:admiral_tablet_a/core/session/index.dart';
-import 'package:admiral_tablet_a/core/session/day_status_indicator.dart';
+// Placeholder للقائمة؛ اربطه بكنترولر بياناتك لاحقًا.
 
-class ExpensesScreen extends StatefulWidget {
+class ExpensesScreen extends StatelessWidget {
   const ExpensesScreen({super.key});
 
   @override
-  State createState() => _ExpensesScreenState();
-}
-
-class _ExpensesScreenState extends State {
-  final _ctrl = ExpenseController();
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future _load() async {
-    await _ctrl.restore();
-    if (mounted) setState(() => _loading = false);
-  }
-
-  Future _add() async {
-    final day = DaySessionController().current;
-    if (day == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('افتح جلسة اليوم أولاً')),
-      );
-      return;
-    }
-
-    final added = await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ExpenseAddScreen()),
-    );
-    if (added == true) {
-      await _ctrl.restore();
-      if (mounted) setState(() {});
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const DaySessionGate(
-        child: Scaffold(body: Center(child: CircularProgressIndicator())),
-      );
-    }
+    return ChangeNotifierProvider<DaySessionController>(
+      create: (_) => DaySessionController()..load(),
+      child: Consumer<DaySessionController>(
+        builder: (_, session, __) {
+          final cs = Theme.of(context).colorScheme;
+          final canWrite = session.isOn;
 
-    final items = _ctrl.items.reversed.toList();
-
-    return DaySessionGate(
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Expenses'),
-          actions: const [DayStatusIndicator()],
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _add,
-          icon: const Icon(Icons.add),
-          label: const Text('Add'),
-        ),
-        body: items.isEmpty
-            ? const Center(child: Text('No expenses yet'))
-            : ListView.separated(
-          itemCount: items.length,
-          separatorBuilder: (_, __) => const Divider(height: 0),
-          itemBuilder: (context, i) {
-            final e = items[i];
-            return ListTile(
-              leading: const Icon(Icons.money_off),
-              title: Text(e.kind ?? 'نوع المصروف؟'),
-              subtitle: Text(e.note ?? ''),
-              trailing: Text('${(e.amount ?? 0).toStringAsFixed(2)} دج'),
-              onLongPress: () async {
-                final ok = await showDialog(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: const Text('Delete expense?'),
-                    content: const Text('This action cannot be undone.'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancel'),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Delete'),
-                      ),
-                    ],
+          return Scaffold(
+            appBar: AppBar(title: const Text('Expenses')),
+            body: Column(
+              children: [
+                if (!canWrite)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceVariant,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: cs.outlineVariant),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.lock_outline),
+                        SizedBox(width: 8),
+                        Expanded(child: Text('Session OFF — القراءة فقط')),
+                      ],
+                    ),
+                  ),
+                const Expanded(
+                  child: _ExpensesListPlaceholder(),
+                ),
+              ],
+            ),
+            floatingActionButton: FloatingActionButton.extended(
+              icon: const Icon(Icons.add),
+              label: const Text('Add expense'),
+              onPressed: canWrite
+                  ? () async {
+                final ok = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (_) => const ExpenseAddScreen(),
                   ),
                 );
-                if (ok == true) {
-                  await _ctrl.delete(e.id ?? '');
-                  if (mounted) setState(() {});
-                }
+                // أعد تحميل القائمة لو ok == true
+              }
+                  : () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Session OFF — فعّلها من الشاشة الرئيسية'),
+                  ),
+                );
               },
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 }
+
+class _ExpensesListPlaceholder extends StatelessWidget {
+  const _ExpensesListPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Center(
+      child: Text(
+        'قائمة المصاريف (عرض فقط الآن)\n— سيتم ربطها بالبيانات لاحقًا —',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: cs.outline),
+      ),
+    );
+  }
+}
+
