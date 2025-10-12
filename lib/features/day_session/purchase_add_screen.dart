@@ -6,12 +6,15 @@ import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/purchase_controller.dart';
 
 class PurchaseAddScreen extends StatefulWidget {
-  const PurchaseAddScreen({super.key});
+  final PurchaseModel? edit; // null => إضافة، غير ذلك => تعديل
+
+  const PurchaseAddScreen({super.key, this.edit});
+
   @override
   State createState() => _PurchaseAddScreenState();
 }
 
-class _PurchaseAddScreenState extends State {
+class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
   final _form = GlobalKey<FormState>();
   final _supplier = TextEditingController();
   final _tagNumber = TextEditingController();
@@ -27,7 +30,19 @@ class _PurchaseAddScreenState extends State {
   void initState() {
     super.initState();
     _session = DaySessionController();
-    _session.load().then((_) => mounted ? setState(() => _loading = false) : null);
+    _session.load().then((_) {
+      if (!mounted) return;
+      // تعبئة أولية في حال التعديل
+      final m = widget.edit;
+      if (m != null) {
+        _supplier.text = m.supplier;
+        _tagNumber.text = m.tagNumber;
+        _price.text = m.price.toStringAsFixed(2);
+        _count.text = m.count.toString();
+        _note.text = m.note ?? '';
+      }
+      setState(() => _loading = false);
+    });
   }
 
   @override
@@ -56,25 +71,43 @@ class _PurchaseAddScreenState extends State {
       final count = int.tryParse(_count.text.trim()) ?? 0;
       final total = price * count;
 
-      final m = PurchaseModel(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        sessionId: _session.current!.id,
-        supplier: _supplier.text.trim(),
-        tagNumber: _tagNumber.text.trim(),
-        price: price,
-        count: count,
-        total: total,
-        note: _note.text.trim().isEmpty ? null : _note.text.trim(),
-        timestamp: DateTime.now(),
-      );
+      if (widget.edit == null) {
+        // إضافة
+        final m = PurchaseModel(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          sessionId: _session.current!.id,
+          supplier: _supplier.text.trim(),
+          tagNumber: _tagNumber.text.trim(),
+          price: price,
+          count: count,
+          total: total,
+          note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+          timestamp: DateTime.now(),
+        );
+        await PurchaseController().add(m);
+      } else {
+        // تعديل
+        final old = widget.edit!;
+        final updated = PurchaseModel(
+          id: old.id,
+          sessionId: old.sessionId,
+          supplier: _supplier.text.trim(),
+          tagNumber: _tagNumber.text.trim(),
+          price: price,
+          count: count,
+          total: total,
+          note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+          timestamp: old.timestamp, // لا نغيّر الطابع الزمني الأصلي
+        );
+        await PurchaseController().update(id: old.id, updated: updated);
+      }
 
-      await PurchaseController().add(m);
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('فشل حفظ الشراء: $e')));
+          .showSnackBar(SnackBar(content: Text('فشل الحفظ: $e')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -86,8 +119,8 @@ class _PurchaseAddScreenState extends State {
 
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: Text('إضافة شراء')),
-        body: Center(child: CircularProgressIndicator()),
+        appBar: AppBar(title: Text(widget.edit == null ? 'إضافة شراء' : 'تعديل شراء')),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -97,7 +130,7 @@ class _PurchaseAddScreenState extends State {
         builder: (_, s, __) {
           final canWrite = s.isOn;
           return Scaffold(
-            appBar: AppBar(title: const Text('إضافة شراء')),
+            appBar: AppBar(title: Text(widget.edit == null ? 'إضافة شراء' : 'تعديل شراء')),
             body: Form(
               key: _form,
               child: ListView(
@@ -120,7 +153,7 @@ class _PurchaseAddScreenState extends State {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _tagNumber,
-                    decoration: const InputDecoration(labelText: 'رقم الكاتم'),
+                    decoration: const InputDecoration(labelText: 'رقم الخاتم'),
                     textInputAction: TextInputAction.next,
                     enabled: canWrite,
                   ),
