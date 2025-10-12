@@ -36,6 +36,7 @@ class ExpenseController {
   double totalForDay(String d) => listByDay(d).fold(0, (s, e) => s + e.amount);
   void restore() {}
 
+  // إضافة + خصم من المحفظة + حفظ
   Future<void> add(ExpenseModel m) async {
     await load();
     _items.add(m);
@@ -44,6 +45,46 @@ class ExpenseController {
       dayId: m.sessionId,
       amount: m.amount,
       note: 'Expense #${m.id}',
+    );
+  }
+
+  // تحديث + فرق محفظة + حفظ
+  Future<void> update({
+    required String id,
+    required ExpenseModel updated,
+  }) async {
+    await load();
+    final idx = _items.indexWhere((e) => e.id == id);
+    if (idx == -1) return;
+
+    final old = _items[idx];
+    _items[idx] = updated;
+    await _persist();
+
+    final delta = updated.amount - old.amount;
+    if (delta != 0) {
+      await WalletController().addMovement(
+        dayId: updated.sessionId,
+        type: WalletType.expense,
+        amount: -delta, // زيادة المصروف = خصم إضافي (سالب)
+        note: 'Expense edit delta (${updated.id})',
+      );
+    }
+  }
+
+  // حذف + عكس أثر المحفظة + حفظ
+  Future<void> removeById(String id) async {
+    await load();
+    final idx = _items.indexWhere((e) => e.id == id);
+    if (idx == -1) return;
+
+    final m = _items.removeAt(idx);
+    await _persist();
+
+    await WalletController().addRefund(
+      dayId: m.sessionId,
+      amount: m.amount,
+      note: 'Expense deleted (${m.id})',
     );
   }
 
