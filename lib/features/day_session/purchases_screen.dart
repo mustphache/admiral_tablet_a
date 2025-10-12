@@ -22,10 +22,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
   String get _todayId => TimeFmt.dayIdToday();
 
   void _reload() {
-    // نفترض أن الكنترولر يحتفظ بعناصره في الذاكرة مثل WalletController
-    final all = _ctrl.items; // إن لم توجد، حدّثني وسأكيّفها
-    _items = all.where((e) => e.sessionId == _todayId).toList()
-      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    _items = _ctrl.listByDay(_todayId);
     setState(() {});
   }
 
@@ -101,14 +98,14 @@ class _PurchaseTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final date =
-        m.timestamp.toLocal().toString().split('.').first; // عرض مختصر
+    final date = m.timestamp.toLocal().toString().split('.').first;
 
     return ListTile(
       leading: const Icon(Icons.shopping_bag_outlined),
       title: Text(m.supplier.isEmpty ? '—' : m.supplier),
-      subtitle: Text('ت: $date'
-          '${m.tagNumber.isNotEmpty ? ' • كاتم: ${m.tagNumber}' : ''}'),
+      subtitle: Text(
+        'ت: $date${m.tagNumber.isNotEmpty ? ' • كاتم: ${m.tagNumber}' : ''}',
+      ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
