@@ -16,7 +16,17 @@ class _ExpenseAddScreenState extends State {
   final _kind = TextEditingController();
   final _amount = TextEditingController();
   final _note = TextEditingController();
+
+  late final DaySessionController _session;
+  bool _loading = true;
   bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _session = DaySessionController();
+    _session.load().then((_) => mounted ? setState(() => _loading = false) : null);
+  }
 
   @override
   void dispose() {
@@ -28,9 +38,7 @@ class _ExpenseAddScreenState extends State {
 
   Future _save() async {
     if (!_form.currentState!.validate()) return;
-    final day = Provider.of<DaySessionController>(context, listen: false);
-
-    if (!day.isOn || day.current == null) {
+    if (!_session.isOn || _session.current == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')),
@@ -44,7 +52,7 @@ class _ExpenseAddScreenState extends State {
 
       final m = ExpenseModel(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
-        sessionId: day.current!.id,
+        sessionId: _session.current!.id,
         kind: _kind.text.trim(),
         amount: amount,
         note: _note.text.trim().isEmpty ? null : _note.text.trim(),
@@ -66,8 +74,16 @@ class _ExpenseAddScreenState extends State {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return ChangeNotifierProvider<DaySessionController>(
-      create: (_) => DaySessionController()..load(),
+
+    if (_loading) {
+      return const Scaffold(
+        appBar: AppBar(title: Text('إضافة مصروف')),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return ChangeNotifierProvider<DaySessionController>.value(
+      value: _session,
       child: Consumer<DaySessionController>(
         builder: (_, s, __) {
           final canWrite = s.isOn;
