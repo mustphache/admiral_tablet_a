@@ -5,29 +5,31 @@ import 'package:provider/provider.dart';
 
 import 'package:admiral_tablet_a/ui/widgets/app_scaffold.dart';
 
-// جلسة اليوم (Gate + مؤشر الحالة)
-import 'package:admiral_tablet_a/core/session/index.dart';
+// شارة الحالة + Gate
 import 'package:admiral_tablet_a/core/session/day_status_indicator.dart';
 
-// الشاشات التي سننقل إليها
+// شاشات
 import 'package:admiral_tablet_a/features/day_session/day_session_screen.dart';
 import 'package:admiral_tablet_a/features/day_session/purchases_screen.dart';
 import 'package:admiral_tablet_a/features/day_session/expenses_screen.dart';
 import 'package:admiral_tablet_a/features/wallet/screens/wallet_screen.dart';
 
-// صندوق الرصيد الوارد
+// رصيد وارد
 import 'package:admiral_tablet_a/state/services/credit_inbox_store.dart';
-// محفظة + يوم
+// محفظة + Session
 import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
+
+// SSOT
+import 'package:admiral_tablet_a/core/time/time_formats.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return DaySessionGate(
-      allowWhenClosed: true,
+    return ChangeNotifierProvider<DaySessionController>(
+      create: (_) => DaySessionController()..load(),
       child: AppScaffold(
         title: 'ADMIRAL — Tablet A',
         actions: const [DayStatusIndicator()],
@@ -50,25 +52,79 @@ class _HomeBodyState extends State<_HomeBody> {
   @override
   void initState() {
     super.initState();
-    _inbox.load(); // حمل الصندوق
+    _inbox.load();
   }
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<CreditInboxStore>.value(
       value: _inbox,
-      child: Column(
-        children: const [
-          _CreditBanner(),  // الشريط + زر التطوير
-          Expanded(child: _HomeGrid()),
-        ],
+      child: Consumer<DaySessionController>(
+        builder: (_, session, __) {
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _SessionSwitchCard(ctrl: session),
+              const SizedBox(height: 12),
+              _CreditBanner(canConfirm: session.isOn),
+              const SizedBox(height: 8),
+              const _HomeGrid(),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
+// -------- Session Switch (الوحيد) --------
+class _SessionSwitchCard extends StatelessWidget {
+  final DaySessionController ctrl;
+  const _SessionSwitchCard({required this.ctrl});
+
+  @override
+  Widget build(BuildContext context) {
+    final on = ctrl.isOn;
+    final cs = Theme.of(context).colorScheme;
+
+    return Card(
+      child: ListTile(
+        leading: Icon(
+          on ? Icons.toggle_on : Icons.toggle_off,
+          size: 40,
+          color: on ? Colors.green : cs.outline,
+        ),
+        title: Text(on ? 'Session ON' : 'Session OFF'),
+        subtitle: Text(on
+            ? 'الإضافة مفعّلة (مشتريات/مصاريف/محفظة)'
+            : 'القراءة فقط — لا يمكن إضافة/تعديل/حذف'),
+        trailing: Switch(
+          value: on,
+          onChanged: (v) async {
+            if (v) {
+              await ctrl.turnOn(actor: 'home');
+              // ignore: use_build_context_synchronously
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('تم تفعيل Session — الكتابة مفعّلة')),
+              );
+            } else {
+              await ctrl.turnOff(actor: 'home');
+              // ignore: use_build_context_synchronously
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('تم إيقاف Session — القراءة فقط')),
+              );
+            }
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// -------- Credit Inbox Banner --------
 class _CreditBanner extends StatelessWidget {
-  const _CreditBanner();
+  final bool canConfirm;
+  const _CreditBanner({required this.canConfirm});
 
   @override
   Widget build(BuildContext context) {
@@ -78,12 +134,10 @@ class _CreditBanner extends StatelessWidget {
       builder: (_, inbox, __) {
         final total = inbox.pendingTotal;
 
-        // --- حالة بدون رصيد معلّق ---
+        // Debug: صندوق حقن وهمي
         if (total <= 0) {
-          // في التطوير فقط: صندوق صغير لحقن رصيد وارد للتجريب
           if (kDebugMode) {
             return Container(
-              margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: cs.surfaceVariant,
@@ -109,13 +163,10 @@ class _CreditBanner extends StatelessWidget {
               ),
             );
           }
-          // لا شيء يظهر في الإنتاج
-          return const SizedBox(height: 8);
+          return const SizedBox.shrink();
         }
 
-        // --- حالة وجود رصيد معلّق ---
         return Container(
-          margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: cs.surfaceVariant,
@@ -132,34 +183,29 @@ class _CreditBanner extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              FilledButton.tonal(
-                onPressed: () async {
-                  final dayCtrl = DaySessionController();
-                  final wallet = WalletController();
-
-                  // ✅ نضيف دائمًا للمحفظة:
-                  // - لو اليوم مفتوح: dayId الحالي
-                  // - لو مغلق: تاريخ اليوم كنص yyyy-MM-dd
-                  final dayId = (dayCtrl.isOpen && dayCtrl.current != null)
-                      ? dayCtrl.current!.id
-                      : DateTime.now().toIso8601String().split('T').first;
-
-                  await wallet.addCredit(
-                    dayId: dayId,
-                    amount: total,
-                    note: 'Incoming credit (confirmed)',
-                  );
-
-                  // امسح الصندوق
-                  await inbox.clear();
-
-                  if (Navigator.canPop(context)) {
+              Tooltip(
+                message: canConfirm
+                    ? 'إضافة الرصيد للمحفظة'
+                    : 'الكتابة مقفولة (Session OFF) — فعّلها من الشاشة الرئيسية',
+                child: FilledButton.tonal(
+                  onPressed: canConfirm
+                      ? () async {
+                    final wallet = WalletController();
+                    final dayId = TimeFmt.dayIdToday();
+                    await wallet.addCredit(
+                      dayId: dayId,
+                      amount: total,
+                      note: 'Incoming credit (confirmed)',
+                    );
+                    await inbox.clear();
+                    // ignore: use_build_context_synchronously
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('تم تأكيد الرصيد الوارد وإضافته للمحفظة')),
+                      const SnackBar(content: Text('تمت إضافة الرصيد إلى المحفظة')),
                     );
                   }
-                },
-                child: const Text('تأكيد'),
+                      : null,
+                  child: const Text('تأكيد'),
+                ),
               ),
               if (kDebugMode) ...[
                 const SizedBox(width: 8),
@@ -176,7 +222,6 @@ class _CreditBanner extends StatelessWidget {
     );
   }
 
-  /// حوار إدخال رصيد وارد (للتطوير فقط)
   static Future<void> _devAddCreditDialog(BuildContext context) async {
     final amountCtrl = TextEditingController();
     final noteCtrl = TextEditingController();
@@ -225,10 +270,12 @@ class _CreditBanner extends StatelessWidget {
       if (v > 0) {
         final inbox = Provider.of<CreditInboxStore>(context, listen: false);
         await inbox.addPending(v, note: note);
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Injected ${v.toStringAsFixed(2)} DZD (dev)')),
         );
       } else {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Invalid amount')),
         );
@@ -236,6 +283,8 @@ class _CreditBanner extends StatelessWidget {
     }
   }
 }
+
+// -------- Tiles --------
 
 class _HomeGrid extends StatelessWidget {
   const _HomeGrid();
@@ -257,27 +306,22 @@ class _HomeGrid extends StatelessWidget {
   }
 }
 
-// -------- Tiles --------
-
 class PurchasesTile extends StatelessWidget {
   const PurchasesTile({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<DaySessionStore>(
-      builder: (_, store, __) {
-        final locked = !store.state.isOpen;
+    return Consumer<DaySessionController>(
+      builder: (_, session, __) {
+        final locked = !session.isOn;
         return _HomeTile(
           icon: Icons.shopping_bag_outlined,
           label: 'Purchases',
           locked: locked,
           onTap: () {
             if (locked) {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const DaySessionScreen()),
-              );
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('افتح اليوم أولاً لإضافة مشتريات')),
+                const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')),
               );
             } else {
               Navigator.of(context).push(
@@ -296,20 +340,17 @@ class ExpensesTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<DaySessionStore>(
-      builder: (_, store, __) {
-        final locked = !store.state.isOpen;
+    return Consumer<DaySessionController>(
+      builder: (_, session, __) {
+        final locked = !session.isOn;
         return _HomeTile(
           icon: Icons.receipt_long_outlined,
           label: 'Expenses',
           locked: locked,
           onTap: () {
             if (locked) {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const DaySessionScreen()),
-              );
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('افتح اليوم أولاً لتسجيل مصروف')),
+                const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')),
               );
             } else {
               Navigator.of(context).push(
@@ -328,7 +369,6 @@ class WalletTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // المحفظة مفتوحة دائمًا
     return _HomeTile(
       icon: Icons.account_balance_wallet_outlined,
       label: 'Wallet',
@@ -349,7 +389,7 @@ class EndOfDayTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return _HomeTile(
       icon: Icons.flag_circle_outlined,
-      label: 'End of day',
+      label: 'Session Info',
       locked: false,
       onTap: () {
         Navigator.of(context).push(
@@ -359,8 +399,6 @@ class EndOfDayTile extends StatelessWidget {
     );
   }
 }
-
-// -------- Generic tile with "locked" visual --------
 
 class _HomeTile extends StatelessWidget {
   final IconData icon;
@@ -404,7 +442,7 @@ class _HomeTile extends StatelessWidget {
                   children: const [
                     Icon(Icons.lock_outline, size: 16),
                     SizedBox(width: 4),
-                    Text('افتح اليوم أولاً', style: TextStyle(fontSize: 12)),
+                    Text('Session OFF', style: TextStyle(fontSize: 12)),
                   ],
                 ),
               ],
