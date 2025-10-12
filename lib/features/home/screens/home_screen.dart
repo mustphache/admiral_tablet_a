@@ -26,7 +26,6 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // نخلي الـHome متاحة دايمًا، ونوفر الـProvider لمؤشر الحالة والـtiles
     return DaySessionGate(
       allowWhenClosed: true,
       child: AppScaffold(
@@ -60,7 +59,7 @@ class _HomeBodyState extends State<_HomeBody> {
       value: _inbox,
       child: Column(
         children: const [
-          _CreditBanner(),  // ⬅️ الشريط + زر التطوير
+          _CreditBanner(),  // الشريط + زر التطوير
           Expanded(child: _HomeGrid()),
         ],
       ),
@@ -138,20 +137,25 @@ class _CreditBanner extends StatelessWidget {
                   final dayCtrl = DaySessionController();
                   final wallet = WalletController();
 
-                  if (dayCtrl.isOpen && dayCtrl.current != null) {
-                    // اليوم مفتوح -> أضف كرَصيد للمحفظة تحت dayId الحالي
-                    await wallet.addCredit(
-                      dayId: dayCtrl.current!.id,
-                      amount: total,
-                      note: 'Incoming credit (confirmed)',
-                    );
-                  }
-                  // امسح الصندوق (في كل الأحوال)
+                  // ✅ نضيف دائمًا للمحفظة:
+                  // - لو اليوم مفتوح: dayId الحالي
+                  // - لو مغلق: تاريخ اليوم كنص yyyy-MM-dd
+                  final dayId = (dayCtrl.isOpen && dayCtrl.current != null)
+                      ? dayCtrl.current!.id
+                      : DateTime.now().toIso8601String().split('T').first;
+
+                  await wallet.addCredit(
+                    dayId: dayId,
+                    amount: total,
+                    note: 'Incoming credit (confirmed)',
+                  );
+
+                  // امسح الصندوق
                   await inbox.clear();
 
                   if (Navigator.canPop(context)) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('تم تأكيد الرصيد الوارد')),
+                      const SnackBar(content: Text('تم تأكيد الرصيد الوارد وإضافته للمحفظة')),
                     );
                   }
                 },
