@@ -5,7 +5,7 @@ import '../../data/models/wallet_movement_model.dart';
 import '../services/outbox_service.dart';
 import '../../data/models/outbox_item_model.dart';
 
-// ✅ التدقيق
+// Audit (سجل تدقيقي)
 import 'package:admiral_tablet_a/state/services/audit_log_service.dart';
 import 'package:admiral_tablet_a/data/models/audit_event_model.dart';
 
@@ -33,7 +33,7 @@ class WalletController {
       type: type,
       amount: amount,
       note: note,
-      createdAt: now, // نحفظ ms
+      createdAt: now, // ⬅️ نحفظ بدقة الميلي
     );
 
     _items.add(m);
@@ -50,14 +50,13 @@ class WalletController {
       createdAt: now,
     ));
 
-    // ✅ Audit (Append-only) — “create” لكل حركة جديدة
+    // Audit (Append-only)
     await AuditLogService().log(
       entityKind: AuditEntityKind.walletMovement,
       entityId: m.id,
       action: AuditAction.create,
       before: null,
       after: m.toMap(),
-      // actor: لاحقًا نقدر نمرّر اسم المستخدم/الجهاز
     );
 
     return m;
