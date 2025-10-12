@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:admiral_tablet_a/core/session/day_status_indicator.dart';
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 
 import 'package:admiral_tablet_a/features/day_session/day_session_screen.dart';
@@ -34,7 +33,23 @@ class _HomeScaffold extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('ADMIRAL — Tablet A'),
-        actions: const [DayStatusIndicator()],
+        actions: [
+          Consumer<DaySessionController>(
+            builder: (_, s, __) {
+              final on = s.isOn;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Chip(
+                  label: Text(on ? 'Session ON' : 'Session OFF'),
+                  avatar: CircleAvatar(
+                    backgroundColor: on ? Colors.green : Colors.grey,
+                    radius: 6,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: const _HomeBody(),
     );
@@ -79,7 +94,6 @@ class _HomeBodyState extends State<_HomeBody> {
   }
 }
 
-// -------- Session Switch (الوحيد) --------
 class _SessionSwitchCard extends StatelessWidget {
   final DaySessionController ctrl;
   const _SessionSwitchCard({required this.ctrl});
@@ -125,7 +139,6 @@ class _SessionSwitchCard extends StatelessWidget {
   }
 }
 
-// -------- Credit Inbox Banner --------
 class _CreditBanner extends StatelessWidget {
   final bool canConfirm;
   const _CreditBanner({required this.canConfirm});
@@ -152,10 +165,8 @@ class _CreditBanner extends StatelessWidget {
                   const Icon(Icons.construction, size: 20),
                   const SizedBox(width: 8),
                   const Expanded(
-                    child: Text(
-                      'Dev: Inject incoming credit for testing',
-                      style: TextStyle(fontSize: 13),
-                    ),
+                    child: Text('Dev: Inject incoming credit for testing',
+                        style: TextStyle(fontSize: 13)),
                   ),
                   TextButton.icon(
                     onPressed: () => _devAddCreditDialog(context),
@@ -185,7 +196,7 @@ class _CreditBanner extends StatelessWidget {
                   'رصيد وارد: ${total.toStringAsFixed(2)} دج — اضغط تأكيد لإضافته',
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(height: 12),
               Tooltip(
                 message: canConfirm
                     ? 'إضافة الرصيد للمحفظة'
@@ -249,9 +260,7 @@ class _CreditBanner extends StatelessWidget {
             const SizedBox(height: 8),
             TextField(
               controller: noteCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Note (optional)',
-              ),
+              decoration: const InputDecoration(labelText: 'Note (optional)'),
             ),
           ],
         ),
