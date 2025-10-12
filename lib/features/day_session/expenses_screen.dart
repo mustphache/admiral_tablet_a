@@ -18,18 +18,20 @@ class ExpensesScreen extends StatefulWidget {
 class _ExpensesScreenState extends State<ExpensesScreen> {
   final _ctrl = ExpenseController();
   List<ExpenseModel> _items = const [];
+  bool _loading = true;
 
   String get _todayId => TimeFmt.dayIdToday();
 
   void _reload() {
     _items = _ctrl.listByDay(_todayId);
-    setState(() {});
+    setState(() => _loading = false);
   }
 
   @override
   void initState() {
     super.initState();
-    _reload();
+    // ✅ حمّل البيانات قبل العرض
+    ExpenseController().load().then((_) => mounted ? _reload() : null);
   }
 
   @override
@@ -40,6 +42,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         builder: (_, session, __) {
           final canWrite = session.isOn;
           final cs = Theme.of(context).colorScheme;
+
+          if (_loading) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Expenses')),
+              body: const Center(child: CircularProgressIndicator()),
+            );
+          }
 
           final total = _items.fold<double>(0, (s, e) => s + e.amount);
 
@@ -112,16 +121,15 @@ class _ExpenseTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final date = m.timestamp.toLocal().toString().split('.').first;
-
     return ListTile(
       leading: const Icon(Icons.receipt_long_outlined),
       title: Text(m.kind.isEmpty ? '—' : m.kind),
       subtitle: Text('ت: $date'),
-      trailing: Text('${m.amount.toStringAsFixed(2)} دج',
-          style: const TextStyle(fontWeight: FontWeight.w600)),
-      tileColor: cs.surface,
+      trailing: Text(
+        '${m.amount.toStringAsFixed(2)} دج',
+        style: const TextStyle(fontWeight: FontWeight.w700),
+      ),
     );
   }
 }
