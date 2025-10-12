@@ -6,8 +6,7 @@ import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/purchase_controller.dart';
 
 class PurchaseAddScreen extends StatefulWidget {
-  final PurchaseModel? edit; // null => إضافة، غير ذلك => تعديل
-
+  final PurchaseModel? edit;
   const PurchaseAddScreen({super.key, this.edit});
 
   @override
@@ -32,7 +31,6 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
     _session = DaySessionController();
     _session.load().then((_) {
       if (!mounted) return;
-      // تعبئة أولية في حال التعديل
       final m = widget.edit;
       if (m != null) {
         _supplier.text = m.supplier;
@@ -55,24 +53,23 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
     super.dispose();
   }
 
-  Future _save() async {
+  Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
     if (!_session.isOn || _session.current == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')));
       return;
     }
 
     setState(() => _busy = true);
     try {
-      final price = double.tryParse(_price.text.trim()) ?? 0;
-      final count = int.tryParse(_count.text.trim()) ?? 0;
-      final total = price * count;
+      final double price = double.tryParse(_price.text.trim()) ?? 0;
+      final int count = int.tryParse(_count.text.trim()) ?? 0;
+      final double total = price * count;
+      final String note = _note.text.trim();
 
       if (widget.edit == null) {
-        // إضافة
         final m = PurchaseModel(
           id: DateTime.now().microsecondsSinceEpoch.toString(),
           sessionId: _session.current!.id,
@@ -81,12 +78,11 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
           price: price,
           count: count,
           total: total,
-          note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+          note: note.isEmpty ? null : note,
           timestamp: DateTime.now(),
         );
         await PurchaseController().add(m);
       } else {
-        // تعديل
         final old = widget.edit!;
         final updated = PurchaseModel(
           id: old.id,
@@ -96,18 +92,20 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
           price: price,
           count: count,
           total: total,
-          note: _note.text.trim().isEmpty ? null : _note.text.trim(),
-          timestamp: old.timestamp, // لا نغيّر الطابع الزمني الأصلي
+          note: note.isEmpty ? null : note,
+          timestamp: old.timestamp,
         );
-        await PurchaseController().update(id: old.id, updated: updated);
+        final String oldId = old.id; // تعريف صريح يزيل أي التباس
+        await PurchaseController().update(id: oldId, updated: updated);
       }
 
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('فشل الحفظ: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('فشل الحفظ: $e')),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -139,16 +137,14 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
                   if (!canWrite)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: Text('Session OFF — القراءة فقط',
-                          style: TextStyle(color: cs.outline)),
+                      child: Text('Session OFF — القراءة فقط', style: TextStyle(color: cs.outline)),
                     ),
                   TextFormField(
                     controller: _supplier,
-                    decoration: const InputDecoration(labelText: 'المورّد'),
+                    decoration: const InputDecoration(labelText: 'المورد'),
                     textInputAction: TextInputAction.next,
                     enabled: canWrite,
-                    validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'أدخل المورّد' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'أدخل المورد' : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -161,8 +157,7 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
                   TextFormField(
                     controller: _price,
                     decoration: const InputDecoration(labelText: 'السعر'),
-                    keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     textInputAction: TextInputAction.next,
                     enabled: canWrite,
                     validator: (v) {
@@ -176,7 +171,7 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
                     controller: _count,
                     decoration: const InputDecoration(labelText: 'العدد'),
                     keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.next,
+                    textInputAction: TextInputAction.done,
                     enabled: canWrite,
                     validator: (v) {
                       final n = int.tryParse((v ?? '').trim());
@@ -187,8 +182,7 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _note,
-                    decoration:
-                    const InputDecoration(labelText: 'ملاحظات (اختياري)'),
+                    decoration: const InputDecoration(labelText: 'ملاحظات (اختياري)'),
                     minLines: 1,
                     maxLines: 3,
                     enabled: canWrite,
@@ -197,15 +191,8 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
                   FilledButton.icon(
                     onPressed: (!canWrite || _busy) ? null : _save,
                     icon: const Icon(Icons.save),
-                    label: _busy
-                        ? const Text('جارٍ الحفظ…')
-                        : const Text('حفظ'),
+                    label: _busy ? const Text('جارٍ الحفظ…') : const Text('حفظ'),
                   ),
-                  const SizedBox(height: 8),
-                  if (_busy)
-                    LinearProgressIndicator(
-                      backgroundColor: cs.surfaceVariant,
-                    ),
                 ],
               ),
             ),
