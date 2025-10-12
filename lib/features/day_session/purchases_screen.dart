@@ -18,18 +18,20 @@ class PurchasesScreen extends StatefulWidget {
 class _PurchasesScreenState extends State<PurchasesScreen> {
   final _ctrl = PurchaseController();
   List<PurchaseModel> _items = const [];
+  bool _loading = true;
 
   String get _todayId => TimeFmt.dayIdToday();
 
   void _reload() {
     _items = _ctrl.listByDay(_todayId);
-    setState(() {});
+    setState(() => _loading = false);
   }
 
   @override
   void initState() {
     super.initState();
-    _reload();
+    // ✅ حمّل البيانات قبل العرض
+    PurchaseController().load().then((_) => mounted ? _reload() : null);
   }
 
   @override
@@ -40,6 +42,13 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
         builder: (_, session, __) {
           final canWrite = session.isOn;
           final cs = Theme.of(context).colorScheme;
+
+          if (_loading) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Purchases')),
+              body: const Center(child: CircularProgressIndicator()),
+            );
+          }
 
           return Scaffold(
             appBar: AppBar(title: const Text('Purchases')),
@@ -103,20 +112,15 @@ class _PurchaseTile extends StatelessWidget {
     return ListTile(
       leading: const Icon(Icons.shopping_bag_outlined),
       title: Text(m.supplier.isEmpty ? '—' : m.supplier),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (m.supplier.isNotEmpty) Text('المورد: ${m.supplier}'),
-          if ((m.tagNumber ?? '').isNotEmpty) Text('خاتم: ${m.tagNumber}'),
-        ],
+      subtitle: Text(
+        'ت: $date${(m.tagNumber ?? '').isNotEmpty ? ' • خاتم: ${m.tagNumber}' : ''}',
       ),
-
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text('${m.total.toStringAsFixed(2)} دج',
-              style: const TextStyle(fontWeight: FontWeight.w600)),
+              style: const TextStyle(fontWeight: FontWeight.w700)),
           Text('(${m.count} × ${m.price.toStringAsFixed(2)})',
               style: TextStyle(color: cs.outline, fontSize: 12)),
         ],
