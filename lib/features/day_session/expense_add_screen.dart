@@ -6,12 +6,15 @@ import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/expense_controller.dart';
 
 class ExpenseAddScreen extends StatefulWidget {
-  const ExpenseAddScreen({super.key});
+  final ExpenseModel? edit;
+
+  const ExpenseAddScreen({super.key, this.edit});
+
   @override
   State createState() => _ExpenseAddScreenState();
 }
 
-class _ExpenseAddScreenState extends State {
+class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
   final _form = GlobalKey<FormState>();
   final _kind = TextEditingController();
   final _amount = TextEditingController();
@@ -25,7 +28,15 @@ class _ExpenseAddScreenState extends State {
   void initState() {
     super.initState();
     _session = DaySessionController();
-    _session.load().then((_) => mounted ? setState(() => _loading = false) : null);
+    _session.load().then((_) {
+      if (!mounted) return;
+      if (widget.edit != null) {
+        _kind.text = widget.edit!.kind;
+        _amount.text = widget.edit!.amount.toStringAsFixed(2);
+        _note.text = widget.edit!.note ?? '';
+      }
+      setState(() => _loading = false);
+    });
   }
 
   @override
@@ -50,22 +61,35 @@ class _ExpenseAddScreenState extends State {
     try {
       final amount = double.tryParse(_amount.text.trim()) ?? 0;
 
-      final m = ExpenseModel(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        sessionId: _session.current!.id,
-        kind: _kind.text.trim(),
-        amount: amount,
-        note: _note.text.trim().isEmpty ? null : _note.text.trim(),
-        timestamp: DateTime.now(),
-      );
+      if (widget.edit == null) {
+        final m = ExpenseModel(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          sessionId: _session.current!.id,
+          kind: _kind.text.trim(),
+          amount: amount,
+          note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+          timestamp: DateTime.now(),
+        );
+        await ExpenseController().add(m);
+      } else {
+        final old = widget.edit!;
+        final updated = ExpenseModel(
+          id: old.id,
+          sessionId: old.sessionId,
+          kind: _kind.text.trim(),
+          amount: amount,
+          note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+          timestamp: old.timestamp,
+        );
+        await ExpenseController().update(id: old.id, updated: updated);
+      }
 
-      await ExpenseController().add(m);
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('فشل حفظ المصروف: $e')));
+          .showSnackBar(SnackBar(content: Text('فشل الحفظ: $e')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -77,8 +101,8 @@ class _ExpenseAddScreenState extends State {
 
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: Text('إضافة مصروف')),
-        body: Center(child: CircularProgressIndicator()),
+        appBar: AppBar(title: Text(widget.edit == null ? 'إضافة مصروف' : 'تعديل مصروف')),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -88,7 +112,7 @@ class _ExpenseAddScreenState extends State {
         builder: (_, s, __) {
           final canWrite = s.isOn;
           return Scaffold(
-            appBar: AppBar(title: const Text('إضافة مصروف')),
+            appBar: AppBar(title: Text(widget.edit == null ? 'إضافة مصروف' : 'تعديل مصروف')),
             body: Form(
               key: _form,
               child: ListView(
