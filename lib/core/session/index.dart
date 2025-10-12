@@ -1,9 +1,22 @@
+// lib/core/session/index.dart
+//
+// نجعل هذا الملف هو المصدر المركزي لكل ما يخص الـSession:
+// - مؤشر الحالة (عرض فقط)
+// - Gate (عرض دائمًا ويمنع الكتابة عند OFF)
+// - تصدير الـController والـStore alias لاستخدامهما في أي شاشة
+
 export 'day_status_indicator.dart';
+
+// نصدر كلاهما للتوافق والاستخدام المباشر عند الحاجة:
+export 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
+export 'package:admiral_tablet_a/state/controllers/day_session_store.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 
+/// Gate عام: يسمح بالعرض دائمًا، ويمنع "الكتابة" عندما تكون Session OFF.
+/// ملاحظة: لا يحتوي على زر تشغيل. التحكّم حصريًا من الشاشة الرئيسية.
 class DaySessionGate extends StatelessWidget {
   final Widget child;
   final bool allowWhenClosed; // للعرض فقط
