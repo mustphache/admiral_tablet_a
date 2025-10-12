@@ -9,11 +9,26 @@ import 'package:admiral_tablet_a/core/time/time_formats.dart';
 import 'package:admiral_tablet_a/state/services/audit_log_service.dart';
 import 'package:admiral_tablet_a/data/models/audit_event_model.dart';
 
-/// كائن بسيط للتوافق مع الكود القديم الذي يستدعي `day.current.id`
+/// طبقة توافق للكود القديم الذي يستعمل day.current.*
+/// نوفر id + startedAt + market + openingCash.
+/// ملاحظة: القيم الافتراضية للـmarket وopeningCash لأن مفهومنا الجديد ON/OFF لا يفرضها.
 class _LegacyDay {
   final String id;
   final DateTime startedAt;
-  const _LegacyDay({required this.id, required this.startedAt});
+  final String market;
+  final double openingCash;
+  final String? notes;
+
+  const _LegacyDay({
+    required this.id,
+    required this.startedAt,
+    this.market = '',
+    this.openingCash = 0.0,
+    this.notes,
+  });
+
+  /// بعض الأكواد القديمة قد تستعمل 'marker' بدل 'market' بالخطأ
+  String get marker => market;
 }
 
 /// المتحكم الرسمي: Session ON/OFF
@@ -84,25 +99,24 @@ class DaySessionController extends ChangeNotifier {
 
   // ========= طبقة التوافق مع الكود القديم =========
 
-  /// بعض الشاشات القديمة تستخدم `day.current?.id`.
-  /// نعيد كائن بسيط فيه `id` عند ON، و`null` عند OFF.
+  /// بعض الشاشات القديمة تستخدم `day.current?.id` وأحيانًا `market/openingCash`.
+  /// نرجّع كائن مبسّط عند ON، وnull عند OFF.
   _LegacyDay? get current {
     if (!_isOn) return null;
     return _LegacyDay(
       id: TimeFmt.dayIdToday(),
       startedAt: (_startedAtUtc ?? DateTime.now().toUtc()).toLocal(),
+      market: '',        // لا نلزم المستخدم بإدخاله في وضع ON/OFF
+      openingCash: 0.0,  // قيمة افتراضية آمنة
+      notes: null,
     );
   }
 
   /// الكود القديم يستدعي restore() عند الإقلاع.
   Future<void> restore() => load();
 
-  /// أسماء قديمة مكافئة للتحكم بالحالة:
+  /// أسماء قديمة مكافئة:
   Future<void> openDay({String? actor}) => turnOn(actor: actor);
   Future<void> closeDay({String? actor}) => turnOff(actor: actor);
   Future<void> closeSession({String? actor}) => turnOff(actor: actor);
 }
-
-/// طبقة توافق إضافية: بعض الأماكن تُنشئ DaySessionStore()
-/// نجعلها ترث DaySessionController حتى يعمل الكود كما هو.
-class DaySessionStore extends DaySessionController {}
