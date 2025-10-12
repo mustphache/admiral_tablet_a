@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/expense_controller.dart';
+import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
 import 'package:admiral_tablet_a/data/models/expense_model.dart';
 import 'package:admiral_tablet_a/core/time/time_formats.dart';
 
@@ -123,6 +124,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           false;
                     },
                     onDismissed: (_) async {
+                      await WalletController().addRefund(
+                        dayId: _dayId,
+                        amount: m.amount,
+                        note: 'Delete expense refund #${m.id}',
+                      );
                       await _ctrl.removeById(m.id.toString());
                       await _reload();
                       if (mounted) {
