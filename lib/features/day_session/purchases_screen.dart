@@ -6,7 +6,7 @@ import 'package:admiral_tablet_a/state/controllers/purchase_controller.dart';
 import 'package:admiral_tablet_a/data/models/purchase_model.dart';
 import 'package:admiral_tablet_a/core/time/time_formats.dart';
 
-import 'package:admiral_tablet_a/features/day_session/purchase_add_screen.dart';
+import 'purchase_add_screen.dart';
 
 class PurchasesScreen extends StatefulWidget {
   const PurchasesScreen({super.key});
@@ -20,10 +20,10 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
   List<PurchaseModel> _items = const [];
   bool _loading = true;
 
-  String get _todayId => TimeFmt.dayIdToday();
+  String get _dayId => TimeFmt.dayIdToday();
 
   Future<void> _reload() async {
-    _items = _ctrl.listByDay(_todayId);
+    _items = _ctrl.listByDay(_dayId);
     setState(() => _loading = false);
   }
 
@@ -35,7 +35,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<DaySessionController>(
+    return ChangeNotifierProvider(
       create: (_) => DaySessionController()..load(),
       child: Consumer<DaySessionController>(
         builder: (_, session, __) {
@@ -73,9 +73,8 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   final m = _items[i];
                   return Dismissible(
                     key: ValueKey('p_${m.id}'),
-                    direction: canWrite
-                        ? DismissDirection.endToStart
-                        : DismissDirection.none,
+                    direction:
+                    canWrite ? DismissDirection.endToStart : DismissDirection.none,
                     background: Container(
                       color: cs.errorContainer,
                       alignment: Alignment.centerRight,
@@ -85,9 +84,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                     confirmDismiss: (_) async {
                       if (!canWrite) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Session OFF — الحذف ممنوع'),
-                          ),
+                          const SnackBar(content: Text('Session OFF — الحذف ممنوع')),
                         );
                         return false;
                       }
@@ -114,9 +111,8 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                       await _ctrl.removeById(m.id);
                       await _reload();
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('تم الحذف')),
-                        );
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(const SnackBar(content: Text('تم الحذف')));
                       }
                     },
                     child: InkWell(
@@ -146,17 +142,13 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
               onPressed: canWrite
                   ? () async {
                 final ok = await Navigator.of(context).push<bool>(
-                  MaterialPageRoute(
-                    builder: (_) => const PurchaseAddScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const PurchaseAddScreen()),
                 );
                 if (ok == true) _reload();
               }
                   : () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Session OFF — فعّلها من الشاشة الرئيسية'),
-                  ),
+                  const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')),
                 );
               },
             ),
@@ -176,12 +168,13 @@ class _PurchaseTile extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final date = m.timestamp.toLocal().toString().split('.').first;
 
+    final supplier = m.supplier.isEmpty ? '—' : m.supplier;
+    final ring = (m.tagNumber ?? '').isNotEmpty ? ' • خاتم: ${m.tagNumber}' : '';
+
     return ListTile(
       leading: const Icon(Icons.shopping_bag_outlined),
-      title: Text(m.supplier.isEmpty ? '—' : m.supplier),
-      subtitle: Text(
-        'ت: $date${(m.tagNumber ?? '').isNotEmpty ? ' • خاتم: ${m.tagNumber}' : ''}',
-      ),
+      title: Text(supplier),
+      subtitle: Text('ت: $date$ring'),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
