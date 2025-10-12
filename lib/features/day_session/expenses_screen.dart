@@ -123,7 +123,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           false;
                     },
                     onDismissed: (_) async {
-                      await _ctrl.removeById(m.id);
+                      await _ctrl.removeById(m.id.toString());
                       await _reload();
                       if (mounted) {
                         ScaffoldMessenger.of(context)
