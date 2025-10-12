@@ -1,4 +1,3 @@
-// lib/state/controllers/wallet_controller.dart
 import 'package:uuid/uuid.dart';
 
 import '../../data/models/wallet_movement_model.dart';
@@ -9,18 +8,14 @@ import '../../data/models/outbox_item_model.dart';
 import 'package:admiral_tablet_a/state/services/audit_log_service.dart';
 import 'package:admiral_tablet_a/data/models/audit_event_model.dart';
 
-/// Singleton: كل الشاشات تشارك نفس الحالة
 class WalletController {
-  // ---- Singleton wiring ----
   WalletController._internal();
   static final WalletController _instance = WalletController._internal();
   factory WalletController() => _instance;
 
-  // ---- Services ----
   final _uuid = const Uuid();
   final _outbox = OutboxService();
 
-  // ---- State ----
   final List<WalletMovementModel> _items = [];
   List<WalletMovementModel> get items => List.unmodifiable(_items);
 
@@ -41,24 +36,19 @@ class WalletController {
       type: type,
       amount: amount,
       note: note,
-      createdAt: now, // ms
+      createdAt: now,
     );
 
     _items.add(m);
 
-    // Outbox للمزامنة
     await _outbox.add(OutboxItemModel(
       id: _uuid.v4(),
       kind: 'wallet',
       dayId: dayId,
-      payload: {
-        'op': type.name,
-        ...m.toMap(),
-      },
+      payload: {'op': type.name, ...m.toMap()},
       createdAt: now,
     ));
 
-    // Audit (append-only)
     await AuditLogService().log(
       entityKind: AuditEntityKind.walletMovement,
       entityId: m.id,
@@ -70,7 +60,7 @@ class WalletController {
     return m;
   }
 
-  // دخل للمحفظة (موجب)
+  // ✅ إرجاع كاش = مال خارج من المحفظة (سالب)
   Future<WalletMovementModel> addRefund({
     required String dayId,
     required double amount,
@@ -79,12 +69,12 @@ class WalletController {
     return addMovement(
       dayId: dayId,
       type: WalletType.refund,
-      amount: amount.abs(),
+      amount: -amount.abs(),
       note: note ?? 'Returned cash',
     );
   }
 
-  // رصيد وارد (موجب)
+  // + رصيد وارد
   Future<WalletMovementModel> addCredit({
     required String dayId,
     required double amount,
@@ -98,7 +88,7 @@ class WalletController {
     );
   }
 
-  // خصم بسبب مشتريات (سالب)
+  // - خصم بسبب مشتريات
   Future<WalletMovementModel> addSpendPurchase({
     required String dayId,
     required double amount,
@@ -112,7 +102,7 @@ class WalletController {
     );
   }
 
-  // خصم بسبب مصروف (سالب)
+  // - خصم بسبب مصروف
   Future<WalletMovementModel> addSpendExpense({
     required String dayId,
     required double amount,
