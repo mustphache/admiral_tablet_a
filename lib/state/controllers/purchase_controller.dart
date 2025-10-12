@@ -1,47 +1,75 @@
 ﻿import 'package:admiral_tablet_a/data/models/purchase_model.dart';
 import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
+import 'package:admiral_tablet_a/state/services/kv_store.dart';
 
-/// وحدة التحكم في المشتريات (محلية حالياً، بدون قاعدة بيانات)
 class PurchaseController {
   PurchaseController._internal();
   static final PurchaseController _instance = PurchaseController._internal();
   factory PurchaseController() => _instance;
 
-  final List<PurchaseModel> _items = [];
+  static const _kStore = 'purchases_store_v1';
 
-  /// كل العناصر (للعرض أو التقارير)
+  final List<PurchaseModel> _items = [];
+  bool _loaded = false;
+
   List<PurchaseModel> get items => List.unmodifiable(_items);
 
-  /// إرجاع المشتريات ليوم معين
+  Future<void> load() async {
+    if (_loaded) return;
+    final list = await KvStore.getList(_kStore);
+    _items
+      ..clear()
+      ..addAll(list.map(_fromMap));
+    _loaded = true;
+  }
+
+  Future<void> _persist() async {
+    await KvStore.setList(_kStore, _items.map(_toMap).toList());
+  }
+
   List<PurchaseModel> listByDay(String dayId) =>
       _items.where((e) => e.sessionId == dayId).toList()
         ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-  // ----------------- توافق مؤقت مع الشاشات القديمة -----------------
-  List<PurchaseModel> getByDay(String dayId) => listByDay(dayId);
-  double totalForDay(String dayId) =>
-      listByDay(dayId).fold(0, (s, e) => s + e.total);
-  void restore() {}
-  // ------------------------------------------------------------------
+  // توافق مؤقت
+  List<PurchaseModel> getByDay(String d) => listByDay(d);
+  double totalForDay(String d) => listByDay(d).fold(0, (s, e) => s + e.total);
+  void restore() {} // لم تعد مطلوبة
 
-  /// إضافة عملية شراء جديدة + خصم تلقائي من المحفظة
-  ///
-  /// المبلغ المخصوم = `total` للشراء.
-  /// يتم التسجيل تحت `dayId = m.sessionId` (وهو dayIdToday حالياً).
+  // إضافة + خصم من المحفظة + حفظ
   Future<void> add(PurchaseModel m) async {
-    // 1) خزّن العملية في الذاكرة
+    await load();
     _items.add(m);
-
-    // 2) خصم تلقائي من المحفظة
-    try {
-      await WalletController().addSpendPurchase(
-        dayId: m.sessionId,
-        amount: m.total,
-        note: 'Purchase #${m.id}',
-      );
-    } catch (_) {
-      // في الوضع الحالي (محلي)، نكتفي بتجاهل الخطأ حتى لا نفقد الشراء نفسه.
-      // لاحقاً ممكن نضيف reconcile/outbox لضمان التطابق.
-    }
+    await _persist();
+    await WalletController().addSpendPurchase(
+      dayId: m.sessionId,
+      amount: m.total,
+      note: 'Purchase #${m.id}',
+    );
   }
+
+  // تحويلات خفيفة (بدون لمس الموديل الأصلي)
+  Map<String, dynamic> _toMap(PurchaseModel m) => {
+    'id': m.id,
+    'sessionId': m.sessionId,
+    'supplier': m.supplier,
+    'tagNumber': m.tagNumber,
+    'price': m.price,
+    'count': m.count,
+    'total': m.total,
+    'timestamp': m.timestamp.toIso8601String(),
+    'note': m.note,
+  };
+
+  PurchaseModel _fromMap(Map<String, dynamic> m) => PurchaseModel(
+    id: m['id'] as String,
+    sessionId: m['sessionId'] as String,
+    supplier: (m['supplier'] as String?) ?? '',
+    tagNumber: (m['tagNumber'] as String?) ?? '',
+    price: (m['price'] as num).toDouble(),
+    count: (m['count'] as num).toInt(),
+    total: (m['total'] as num).toDouble(),
+    timestamp: DateTime.parse(m['timestamp'] as String),
+    note: m['note'] as String?,
+  );
 }
