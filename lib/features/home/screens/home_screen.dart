@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:admiral_tablet_a/ui/widgets/app_scaffold.dart';
 import 'package:admiral_tablet_a/core/session/day_status_indicator.dart';
+import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 
 import 'package:admiral_tablet_a/features/day_session/day_session_screen.dart';
 import 'package:admiral_tablet_a/features/day_session/purchases_screen.dart';
@@ -12,8 +12,6 @@ import 'package:admiral_tablet_a/features/wallet/screens/wallet_screen.dart';
 
 import 'package:admiral_tablet_a/state/services/credit_inbox_store.dart';
 import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
-import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
-
 import 'package:admiral_tablet_a/core/time/time_formats.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -23,11 +21,22 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<DaySessionController>(
       create: (_) => DaySessionController()..load(),
-      child: AppScaffold(
-        title: 'ADMIRAL — Tablet A',
+      child: const _HomeScaffold(),
+    );
+  }
+}
+
+class _HomeScaffold extends StatelessWidget {
+  const _HomeScaffold();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('ADMIRAL — Tablet A'),
         actions: const [DayStatusIndicator()],
-        body: const _HomeBody(),
       ),
+      body: const _HomeBody(),
     );
   }
 }
@@ -70,6 +79,7 @@ class _HomeBodyState extends State<_HomeBody> {
   }
 }
 
+// -------- Session Switch (الوحيد) --------
 class _SessionSwitchCard extends StatelessWidget {
   final DaySessionController ctrl;
   const _SessionSwitchCard({required this.ctrl});
@@ -95,16 +105,18 @@ class _SessionSwitchCard extends StatelessWidget {
           onChanged: (v) async {
             if (v) {
               await ctrl.turnOn(actor: 'home');
-              // ignore: use_build_context_synchronously
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم تفعيل Session — الكتابة مفعّلة')),
-              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('تم تفعيل Session — الكتابة مفعّلة')),
+                );
+              }
             } else {
               await ctrl.turnOff(actor: 'home');
-              // ignore: use_build_context_synchronously
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم إيقاف Session — القراءة فقط')),
-              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('تم إيقاف Session — القراءة فقط')),
+                );
+              }
             }
           },
         ),
@@ -113,6 +125,7 @@ class _SessionSwitchCard extends StatelessWidget {
   }
 }
 
+// -------- Credit Inbox Banner --------
 class _CreditBanner extends StatelessWidget {
   final bool canConfirm;
   const _CreditBanner({required this.canConfirm});
@@ -139,8 +152,10 @@ class _CreditBanner extends StatelessWidget {
                   const Icon(Icons.construction, size: 20),
                   const SizedBox(width: 8),
                   const Expanded(
-                    child: Text('Dev: Inject incoming credit for testing',
-                        style: TextStyle(fontSize: 13)),
+                    child: Text(
+                      'Dev: Inject incoming credit for testing',
+                      style: TextStyle(fontSize: 13),
+                    ),
                   ),
                   TextButton.icon(
                     onPressed: () => _devAddCreditDialog(context),
@@ -166,7 +181,9 @@ class _CreditBanner extends StatelessWidget {
               const Icon(Icons.notifications_active, size: 20),
               const SizedBox(width: 8),
               Expanded(
-                child: Text('رصيد وارد: ${total.toStringAsFixed(2)} دج — اضغط تأكيد لإضافته'),
+                child: Text(
+                  'رصيد وارد: ${total.toStringAsFixed(2)} دج — اضغط تأكيد لإضافته',
+                ),
               ),
               const SizedBox(width: 12),
               Tooltip(
@@ -184,10 +201,11 @@ class _CreditBanner extends StatelessWidget {
                       note: 'Incoming credit (confirmed)',
                     );
                     await inbox.clear();
-                    // ignore: use_build_context_synchronously
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('تمت إضافة الرصيد إلى المحفظة')),
-                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('تمت إضافة الرصيد إلى المحفظة')),
+                      );
+                    }
                   }
                       : null,
                   child: const Text('تأكيد'),
@@ -231,7 +249,9 @@ class _CreditBanner extends StatelessWidget {
             const SizedBox(height: 8),
             TextField(
               controller: noteCtrl,
-              decoration: const InputDecoration(labelText: 'Note (optional)'),
+              decoration: const InputDecoration(
+                labelText: 'Note (optional)',
+              ),
             ),
           ],
         ),
@@ -254,15 +274,17 @@ class _CreditBanner extends StatelessWidget {
       if (v > 0) {
         final inbox = Provider.of<CreditInboxStore>(context, listen: false);
         await inbox.addPending(v, note: note);
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Injected ${v.toStringAsFixed(2)} DZD (dev)')),
-        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Injected ${v.toStringAsFixed(2)} DZD (dev)')),
+          );
+        }
       } else {
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid amount')),
-        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Invalid amount')),
+          );
+        }
       }
     }
   }
@@ -275,6 +297,8 @@ class _HomeGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return GridView.count(
       padding: const EdgeInsets.all(24),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
       mainAxisSpacing: 24,
       crossAxisSpacing: 24,
@@ -303,7 +327,8 @@ class PurchasesTile extends StatelessWidget {
           onTap: () {
             if (locked) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')),
+                const SnackBar(
+                    content: Text('Session OFF — فعّلها من الشاشة الرئيسية')),
               );
             } else {
               Navigator.of(context).push(
@@ -332,7 +357,8 @@ class ExpensesTile extends StatelessWidget {
           onTap: () {
             if (locked) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')),
+                const SnackBar(
+                    content: Text('Session OFF — فعّلها من الشاشة الرئيسية')),
               );
             } else {
               Navigator.of(context).push(
