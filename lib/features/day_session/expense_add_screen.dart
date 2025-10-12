@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:admiral_tablet_a/data/models/expense_model.dart';
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/expense_controller.dart';
+import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
 
 class ExpenseAddScreen extends StatefulWidget {
   final ExpenseModel? edit;
@@ -60,17 +61,25 @@ class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
     try {
       final amount = double.tryParse(_amount.text.trim()) ?? 0;
       final note = _note.text.trim();
+      final dayId = _session.current!.id;
 
       if (widget.edit == null) {
         final m = ExpenseModel(
           id: DateTime.now().microsecondsSinceEpoch.toString(),
-          sessionId: _session.current!.id,
+          sessionId: dayId,
           kind: _kind.text.trim(),
           amount: amount,
           note: note.isEmpty ? null : note,
           timestamp: DateTime.now(),
         );
+
         await ExpenseController().add(m);
+
+        await WalletController().addSpendExpense(
+          dayId: dayId,
+          amount: amount,
+          note: 'Expense #${m.id}',
+        );
       } else {
         final old = widget.edit!;
         final updated = ExpenseModel(
@@ -81,10 +90,26 @@ class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
           note: note.isEmpty ? null : note,
           timestamp: old.timestamp,
         );
+
         await ExpenseController().update(
           id: old.id.toString(),
           updated: updated,
         );
+
+        final delta = amount - old.amount;
+        if (delta > 0) {
+          await WalletController().addSpendExpense(
+            dayId: dayId,
+            amount: delta,
+            note: 'Edit expense #${old.id} (delta)',
+          );
+        } else if (delta < 0) {
+          await WalletController().addRefund(
+            dayId: dayId,
+            amount: -delta,
+            note: 'Edit expense refund #${old.id}',
+          );
+        }
       }
 
       if (!mounted) return;
