@@ -1,4 +1,5 @@
 ﻿import 'package:admiral_tablet_a/data/models/purchase_model.dart';
+import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
 
 /// وحدة التحكم في المشتريات (محلية حالياً، بدون قاعدة بيانات)
 class PurchaseController {
@@ -16,25 +17,31 @@ class PurchaseController {
       _items.where((e) => e.sessionId == dayId).toList()
         ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-  // ================================================================
-  // توافق مؤقت مع الشاشات القديمة (سيُحذف لاحقاً عند الانتقال للنظام الجديد)
-  // ================================================================
-
-  /// نفس وظيفة listByDay() للاسم القديم
+  // ----------------- توافق مؤقت مع الشاشات القديمة -----------------
   List<PurchaseModel> getByDay(String dayId) => listByDay(dayId);
-
-  /// مجموع المشتريات ليوم محدد
   double totalForDay(String dayId) =>
       listByDay(dayId).fold(0, (s, e) => s + e.total);
-
-  /// لا تقوم بشيء حالياً (لتوافق مؤقت فقط)
   void restore() {}
+  // ------------------------------------------------------------------
 
-  // ================================================================
-  // إضافة عملية شراء جديدة (يُضاف مستقبلاً outbox + audit log)
-  // ================================================================
+  /// إضافة عملية شراء جديدة + خصم تلقائي من المحفظة
+  ///
+  /// المبلغ المخصوم = `total` للشراء.
+  /// يتم التسجيل تحت `dayId = m.sessionId` (وهو dayIdToday حالياً).
   Future<void> add(PurchaseModel m) async {
+    // 1) خزّن العملية في الذاكرة
     _items.add(m);
-    // TODO: لاحقاً نضيف Outbox + Audit + خصم تلقائي من المحفظة
+
+    // 2) خصم تلقائي من المحفظة
+    try {
+      await WalletController().addSpendPurchase(
+        dayId: m.sessionId,
+        amount: m.total,
+        note: 'Purchase #${m.id}',
+      );
+    } catch (_) {
+      // في الوضع الحالي (محلي)، نكتفي بتجاهل الخطأ حتى لا نفقد الشراء نفسه.
+      // لاحقاً ممكن نضيف reconcile/outbox لضمان التطابق.
+    }
   }
 }
