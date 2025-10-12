@@ -1,6 +1,7 @@
 // lib/features/wallet/screens/add_wallet_movement_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
@@ -22,7 +23,6 @@ class _AddWalletMovementScreenState extends State<AddWalletMovementScreen> {
 
   late WalletQuickKind _kind;
   final _wallet = WalletController();
-  final _day = DaySessionController();
 
   @override
   void initState() {
@@ -40,21 +40,15 @@ class _AddWalletMovementScreenState extends State<AddWalletMovementScreen> {
     }
 
     final note = _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim();
-    final dayId = (_day.isOpen && _day.current != null)
-        ? _day.current!.id
-        : _fmtDay.format(DateTime.now());
+    final dayId = _fmtDay.format(DateTime.now());
 
     WalletMovementModel created;
-
     if (_kind == WalletQuickKind.deposit) {
-      created =
-      await _wallet.addCredit(dayId: dayId, amount: amount, note: note ?? 'Deposit');
+      created = await _wallet.addCredit(dayId: dayId, amount: amount, note: note ?? 'Deposit');
     } else if (_kind == WalletQuickKind.withdraw) {
-      created = await _wallet.addSpendExpense(
-          dayId: dayId, amount: amount, note: note ?? 'Withdraw');
+      created = await _wallet.addSpendExpense(dayId: dayId, amount: amount, note: note ?? 'Withdraw');
     } else {
-      created = await _wallet.addRefund(
-          dayId: dayId, amount: amount, note: note ?? 'Return cash');
+      created = await _wallet.addRefund(dayId: dayId, amount: amount, note: note ?? 'Return cash');
     }
 
     if (!mounted) return;
@@ -63,34 +57,61 @@ class _AddWalletMovementScreenState extends State<AddWalletMovementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Add wallet movement')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _KindPicker(value: _kind, onChanged: (v) => setState(() => _kind = v)),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _amountCtrl,
-            keyboardType:
-            const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Amount (DZD)',
-              hintText: 'مثال: 200000',
+    return ChangeNotifierProvider<DaySessionController>(
+      create: (_) => DaySessionController()..load(),
+      child: Consumer<DaySessionController>(
+        builder: (_, session, __) {
+          final canWrite = session.isOn;
+          return Scaffold(
+            appBar: AppBar(title: const Text('Add wallet movement')),
+            body: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                if (!canWrite)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceVariant,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text('Session OFF — هذه الشاشة في وضع القراءة فقط. فعّل Session من الشاشة الرئيسية.'),
+                  ),
+                _KindPicker(
+                  value: _kind,
+                  onChanged: canWrite ? (v) => setState(() => _kind = v) : null,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _amountCtrl,
+                  enabled: canWrite,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Amount (DZD)',
+                    hintText: 'مثال: 200000',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _noteCtrl,
+                  enabled: canWrite,
+                  decoration: const InputDecoration(labelText: 'Note (optional)'),
+                ),
+                const SizedBox(height: 20),
+                Tooltip(
+                  message: canWrite
+                      ? 'حفظ الحركة'
+                      : 'الكتابة مقفولة (Session OFF) — فعّلها من الشاشة الرئيسية',
+                  child: FilledButton.icon(
+                    onPressed: canWrite ? _save : null,
+                    icon: const Icon(Icons.check),
+                    label: const Text('Save'),
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _noteCtrl,
-            decoration: const InputDecoration(labelText: 'Note (optional)'),
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: _save,
-            icon: const Icon(Icons.check),
-            label: const Text('Save'),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -98,7 +119,7 @@ class _AddWalletMovementScreenState extends State<AddWalletMovementScreen> {
 
 class _KindPicker extends StatelessWidget {
   final WalletQuickKind value;
-  final ValueChanged<WalletQuickKind> onChanged;
+  final ValueChanged<WalletQuickKind>? onChanged;
   const _KindPicker({required this.value, required this.onChanged});
 
   @override
@@ -109,17 +130,17 @@ class _KindPicker extends StatelessWidget {
         ChoiceChip(
           label: const Text('Deposit'),
           selected: value == WalletQuickKind.deposit,
-          onSelected: (_) => onChanged(WalletQuickKind.deposit),
+          onSelected: onChanged == null ? null : (_) => onChanged!(WalletQuickKind.deposit),
         ),
         ChoiceChip(
           label: const Text('Withdraw'),
           selected: value == WalletQuickKind.withdraw,
-          onSelected: (_) => onChanged(WalletQuickKind.withdraw),
+          onSelected: onChanged == null ? null : (_) => onChanged!(WalletQuickKind.withdraw),
         ),
         ChoiceChip(
           label: const Text('Return cash'),
           selected: value == WalletQuickKind.returnCash,
-          onSelected: (_) => onChanged(WalletQuickKind.returnCash),
+          onSelected: onChanged == null ? null : (_) => onChanged!(WalletQuickKind.returnCash),
         ),
       ],
     );
