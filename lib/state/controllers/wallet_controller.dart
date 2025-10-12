@@ -1,3 +1,4 @@
+// lib/state/controllers/wallet_controller.dart
 import 'package:uuid/uuid.dart';
 
 import '../../data/models/wallet_movement_model.dart';
@@ -8,10 +9,18 @@ import '../../data/models/outbox_item_model.dart';
 import 'package:admiral_tablet_a/state/services/audit_log_service.dart';
 import 'package:admiral_tablet_a/data/models/audit_event_model.dart';
 
+/// Singleton: كل الشاشات تشارك نفس الحالة
 class WalletController {
+  // ---- Singleton wiring ----
+  WalletController._internal();
+  static final WalletController _instance = WalletController._internal();
+  factory WalletController() => _instance;
+
+  // ---- Services ----
   final _uuid = const Uuid();
   final _outbox = OutboxService();
 
+  // ---- State ----
   final List<WalletMovementModel> _items = [];
   List<WalletMovementModel> get items => List.unmodifiable(_items);
 
@@ -61,7 +70,7 @@ class WalletController {
     return m;
   }
 
-  // دخل (موجب)
+  // دخل للمحفظة (موجب)
   Future<WalletMovementModel> addRefund({
     required String dayId,
     required double amount,
@@ -89,7 +98,7 @@ class WalletController {
     );
   }
 
-  // خصم مشتريات (سالب)
+  // خصم بسبب مشتريات (سالب)
   Future<WalletMovementModel> addSpendPurchase({
     required String dayId,
     required double amount,
@@ -103,7 +112,7 @@ class WalletController {
     );
   }
 
-  // خصم مصروف (سالب)
+  // خصم بسبب مصروف (سالب)
   Future<WalletMovementModel> addSpendExpense({
     required String dayId,
     required double amount,
