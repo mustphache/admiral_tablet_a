@@ -104,7 +104,7 @@ class _PurchaseTile extends StatelessWidget {
       leading: const Icon(Icons.shopping_bag_outlined),
       title: Text(m.supplier.isEmpty ? '—' : m.supplier),
       subtitle: Text(
-        'ت: $date${m.tagNumber.isNotEmpty ? ' • كاتم: ${m.tagNumber}' : ''}',
+        Text((m.tagNumber ?? '').isNotEmpty ? 'خاتم: ${m.tagNumber}' : ''),
       ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
