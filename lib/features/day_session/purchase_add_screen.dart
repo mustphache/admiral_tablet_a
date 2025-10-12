@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:admiral_tablet_a/data/models/purchase_model.dart';
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/purchase_controller.dart';
+import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
 
 class PurchaseAddScreen extends StatefulWidget {
   final PurchaseModel? edit;
@@ -34,7 +35,7 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
       final m = widget.edit;
       if (m != null) {
         _supplier.text = m.supplier;
-        _tagNumber.text = m.tagNumber ??'';
+        _tagNumber.text = m.tagNumber ?? '';
         _price.text = m.price.toStringAsFixed(2);
         _count.text = m.count.toString();
         _note.text = m.note ?? '';
@@ -69,37 +70,61 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
       final count = int.tryParse(_count.text.trim()) ?? 0;
       final total = price * count;
       final note = _note.text.trim();
+      final dayId = _session.current!.id; // YYYY-MM-DD
 
       if (widget.edit == null) {
         final m = PurchaseModel(
           id: DateTime.now().microsecondsSinceEpoch.toString(),
-          sessionId: _session.current!.id,
+          sessionId: dayId,
           supplier: _supplier.text.trim(),
-          tagNumber: _tagNumber.text.trim(),
+          tagNumber: _tagNumber.text.trim().isEmpty ? null : _tagNumber.text.trim(),
           price: price,
           count: count,
           total: total,
           note: note.isEmpty ? null : note,
           timestamp: DateTime.now(),
         );
+
         await PurchaseController().add(m);
+
+        await WalletController().addSpendPurchase(
+          dayId: dayId,
+          amount: total,
+          note: 'Purchase #${m.id}',
+        );
       } else {
         final old = widget.edit!;
         final updated = PurchaseModel(
           id: old.id,
           sessionId: old.sessionId,
           supplier: _supplier.text.trim(),
-          tagNumber: _tagNumber.text.trim(),
+          tagNumber: _tagNumber.text.trim().isEmpty ? null : _tagNumber.text.trim(),
           price: price,
           count: count,
           total: total,
           note: note.isEmpty ? null : note,
           timestamp: old.timestamp,
         );
+
         await PurchaseController().update(
           id: old.id.toString(),
           updated: updated,
         );
+
+        final delta = total - old.total;
+        if (delta > 0) {
+          await WalletController().addSpendPurchase(
+            dayId: dayId,
+            amount: delta,
+            note: 'Edit purchase #${old.id} (delta)',
+          );
+        } else if (delta < 0) {
+          await WalletController().addRefund(
+            dayId: dayId,
+            amount: -delta,
+            note: 'Edit purchase refund #${old.id}',
+          );
+        }
       }
 
       if (!mounted) return;
