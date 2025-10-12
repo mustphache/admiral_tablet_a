@@ -76,7 +76,7 @@ class _ExpenseAddScreenState extends State {
     final cs = Theme.of(context).colorScheme;
 
     if (_loading) {
-      return const Scaffold(
+      return Scaffold(
         appBar: AppBar(title: Text('إضافة مصروف')),
         body: Center(child: CircularProgressIndicator()),
       );

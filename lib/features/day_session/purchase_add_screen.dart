@@ -85,7 +85,7 @@ class _PurchaseAddScreenState extends State {
     final cs = Theme.of(context).colorScheme;
 
     if (_loading) {
-      return const Scaffold(
+      return Scaffold(
         appBar: AppBar(title: Text('إضافة شراء')),
         body: Center(child: CircularProgressIndicator()),
       );
