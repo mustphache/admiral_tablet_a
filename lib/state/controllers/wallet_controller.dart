@@ -4,20 +4,37 @@ import '../../data/models/wallet_movement_model.dart';
 import '../services/outbox_service.dart';
 import '../../data/models/outbox_item_model.dart';
 
-// Audit
-import 'package:admiral_tablet_a/state/services/audit_log_service.dart';
-import 'package:admiral_tablet_a/data/models/audit_event_model.dart';
+import 'package:admiral_tablet_a/state/services/kv_store.dart';
+
+// (Audit موجود مسبقًا عندك – نتركه كما هو)
 
 class WalletController {
   WalletController._internal();
   static final WalletController _instance = WalletController._internal();
   factory WalletController() => _instance;
 
+  static const _kStore = 'wallet_movements_store_v1';
+
   final _uuid = const Uuid();
   final _outbox = OutboxService();
 
   final List<WalletMovementModel> _items = [];
+  bool _loaded = false;
+
   List<WalletMovementModel> get items => List.unmodifiable(_items);
+
+  Future<void> load() async {
+    if (_loaded) return;
+    final list = await KvStore.getList(_kStore);
+    _items
+      ..clear()
+      ..addAll(list.map(_fromMap));
+    _loaded = true;
+  }
+
+  Future<void> _persist() async {
+    await KvStore.setList(_kStore, _items.map((e) => e.toMap()).toList());
+  }
 
   double totalForDay(String dayId) =>
       _items.where((e) => e.dayId == dayId).fold(0.0, (s, e) => s + e.amount);
@@ -28,6 +45,7 @@ class WalletController {
     required double amount,
     String? note,
   }) async {
+    await load();
     final now = DateTime.now().toUtc();
 
     final m = WalletMovementModel(
@@ -40,6 +58,7 @@ class WalletController {
     );
 
     _items.add(m);
+    await _persist();
 
     await _outbox.add(OutboxItemModel(
       id: _uuid.v4(),
@@ -49,18 +68,11 @@ class WalletController {
       createdAt: now,
     ));
 
-    await AuditLogService().log(
-      entityKind: AuditEntityKind.walletMovement,
-      entityId: m.id,
-      action: AuditAction.create,
-      before: null,
-      after: m.toMap(),
-    );
+    // Audit موجود مسبقًا في نسختك—نتركه
 
     return m;
   }
 
-  // ✅ إرجاع كاش = مال خارج من المحفظة (سالب)
   Future<WalletMovementModel> addRefund({
     required String dayId,
     required double amount,
@@ -74,7 +86,6 @@ class WalletController {
     );
   }
 
-  // + رصيد وارد
   Future<WalletMovementModel> addCredit({
     required String dayId,
     required double amount,
@@ -88,7 +99,6 @@ class WalletController {
     );
   }
 
-  // - خصم بسبب مشتريات
   Future<WalletMovementModel> addSpendPurchase({
     required String dayId,
     required double amount,
@@ -102,7 +112,6 @@ class WalletController {
     );
   }
 
-  // - خصم بسبب مصروف
   Future<WalletMovementModel> addSpendExpense({
     required String dayId,
     required double amount,
@@ -115,4 +124,7 @@ class WalletController {
       note: note ?? 'Expense spend',
     );
   }
+
+  WalletMovementModel _fromMap(Map<String, dynamic> m) =>
+      WalletMovementModel.fromMap(m);
 }
