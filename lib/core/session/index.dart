@@ -1,15 +1,12 @@
-// lib/core/session/index.dart
 export 'day_status_indicator.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 
-/// Gate عام: يسمح بالعرض دائمًا، ويمنع "الكتابة" عندما تكون Session OFF.
-/// ملاحظة: لا يحتوي على زر تشغيل. التحكّم حصريًا من الشاشة الرئيسية.
 class DaySessionGate extends StatelessWidget {
   final Widget child;
-  final bool allowWhenClosed; // للعَرض فقط
+  final bool allowWhenClosed; // للعرض فقط
   const DaySessionGate({
     super.key,
     required this.child,
