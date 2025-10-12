@@ -2,13 +2,38 @@
 import 'package:provider/provider.dart';
 
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
+import 'package:admiral_tablet_a/state/controllers/purchase_controller.dart';
+import 'package:admiral_tablet_a/data/models/purchase_model.dart';
+import 'package:admiral_tablet_a/core/time/time_formats.dart';
+
 import 'package:admiral_tablet_a/features/day_session/purchase_add_screen.dart';
 
-// لو عندك موديل/لودر للقائمة الفعلية استورده واستعمله هنا.
-// مؤقتًا نعرض Placeholder للقائمة.
-
-class PurchasesScreen extends StatelessWidget {
+class PurchasesScreen extends StatefulWidget {
   const PurchasesScreen({super.key});
+
+  @override
+  State<PurchasesScreen> createState() => _PurchasesScreenState();
+}
+
+class _PurchasesScreenState extends State<PurchasesScreen> {
+  final _ctrl = PurchaseController();
+  List<PurchaseModel> _items = const [];
+
+  String get _todayId => TimeFmt.dayIdToday();
+
+  void _reload() {
+    // نفترض أن الكنترولر يحتفظ بعناصره في الذاكرة مثل WalletController
+    final all = _ctrl.items; // إن لم توجد، حدّثني وسأكيّفها
+    _items = all.where((e) => e.sessionId == _todayId).toList()
+      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,35 +41,31 @@ class PurchasesScreen extends StatelessWidget {
       create: (_) => DaySessionController()..load(),
       child: Consumer<DaySessionController>(
         builder: (_, session, __) {
-          final cs = Theme.of(context).colorScheme;
           final canWrite = session.isOn;
+          final cs = Theme.of(context).colorScheme;
 
           return Scaffold(
             appBar: AppBar(title: const Text('Purchases')),
-            body: Column(
-              children: [
-                if (!canWrite)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: cs.surfaceVariant,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: cs.outlineVariant),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.lock_outline),
-                        SizedBox(width: 8),
-                        Expanded(child: Text('Session OFF — القراءة فقط')),
-                      ],
+            body: RefreshIndicator(
+              onRefresh: () async => _reload(),
+              child: _items.isEmpty
+                  ? ListView(
+                children: [
+                  const SizedBox(height: 40),
+                  Center(
+                    child: Text(
+                      'لا توجد مشتريات لليوم.',
+                      style: TextStyle(color: cs.outline),
                     ),
                   ),
-                const Expanded(
-                  child: _PurchasesListPlaceholder(),
-                ),
-              ],
+                ],
+              )
+                  : ListView.separated(
+                padding: const EdgeInsets.all(12),
+                itemBuilder: (_, i) => _PurchaseTile(_items[i]),
+                separatorBuilder: (_, __) => const Divider(height: 4),
+                itemCount: _items.length,
+              ),
             ),
             floatingActionButton: FloatingActionButton.extended(
               icon: const Icon(Icons.add),
@@ -56,7 +77,7 @@ class PurchasesScreen extends StatelessWidget {
                     builder: (_) => const PurchaseAddScreen(),
                   ),
                 );
-                // هنا تقدر تعيد تحميل القائمة لو ok == true
+                if (ok == true) _reload();
               }
                   : () {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -73,17 +94,30 @@ class PurchasesScreen extends StatelessWidget {
   }
 }
 
-class _PurchasesListPlaceholder extends StatelessWidget {
-  const _PurchasesListPlaceholder();
+class _PurchaseTile extends StatelessWidget {
+  final PurchaseModel m;
+  const _PurchaseTile(this.m);
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Center(
-      child: Text(
-        'قائمة المشتريات (عرض فقط الآن)\n— سيتم ربطها بالبيانات لاحقًا —',
-        textAlign: TextAlign.center,
-        style: TextStyle(color: cs.outline),
+    final date =
+        m.timestamp.toLocal().toString().split('.').first; // عرض مختصر
+
+    return ListTile(
+      leading: const Icon(Icons.shopping_bag_outlined),
+      title: Text(m.supplier.isEmpty ? '—' : m.supplier),
+      subtitle: Text('ت: $date'
+          '${m.tagNumber.isNotEmpty ? ' • كاتم: ${m.tagNumber}' : ''}'),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text('${m.total.toStringAsFixed(2)} دج',
+              style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text('(${m.count} × ${m.price.toStringAsFixed(2)})',
+              style: TextStyle(color: cs.outline, fontSize: 12)),
+        ],
       ),
     );
   }
