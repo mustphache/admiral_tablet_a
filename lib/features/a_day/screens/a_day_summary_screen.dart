@@ -36,8 +36,8 @@ class _ADaySummaryScreenState extends State<ADaySummaryScreen> {
   Future<void> _load() async {
     // استرجاع آخر حالة
     await _dayCtrl.restore();
-    await _pCtrl.restore();
-    await _eCtrl.restore();
+    _pCtrl.restore();
+    _eCtrl.restore();
 
     // تحديد sessionId: من الجلسة الحالية أو fallback إلى تاريخ اليوم
     _sessionId = _dayCtrl.current?.id ?? todayISO();
