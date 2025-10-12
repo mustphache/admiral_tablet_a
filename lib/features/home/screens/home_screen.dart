@@ -1,26 +1,19 @@
-﻿// lib/features/home/screens/home_screen.dart
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admiral_tablet_a/ui/widgets/app_scaffold.dart';
-
-// شارة الحالة + Gate
 import 'package:admiral_tablet_a/core/session/day_status_indicator.dart';
 
-// شاشات
 import 'package:admiral_tablet_a/features/day_session/day_session_screen.dart';
 import 'package:admiral_tablet_a/features/day_session/purchases_screen.dart';
 import 'package:admiral_tablet_a/features/day_session/expenses_screen.dart';
 import 'package:admiral_tablet_a/features/wallet/screens/wallet_screen.dart';
 
-// رصيد وارد
 import 'package:admiral_tablet_a/state/services/credit_inbox_store.dart';
-// محفظة + Session
 import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 
-// SSOT
 import 'package:admiral_tablet_a/core/time/time_formats.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -77,7 +70,6 @@ class _HomeBodyState extends State<_HomeBody> {
   }
 }
 
-// -------- Session Switch (الوحيد) --------
 class _SessionSwitchCard extends StatelessWidget {
   final DaySessionController ctrl;
   const _SessionSwitchCard({required this.ctrl});
@@ -121,7 +113,6 @@ class _SessionSwitchCard extends StatelessWidget {
   }
 }
 
-// -------- Credit Inbox Banner --------
 class _CreditBanner extends StatelessWidget {
   final bool canConfirm;
   const _CreditBanner({required this.canConfirm});
@@ -134,7 +125,6 @@ class _CreditBanner extends StatelessWidget {
       builder: (_, inbox, __) {
         final total = inbox.pendingTotal;
 
-        // Debug: صندوق حقن وهمي
         if (total <= 0) {
           if (kDebugMode) {
             return Container(
@@ -149,10 +139,8 @@ class _CreditBanner extends StatelessWidget {
                   const Icon(Icons.construction, size: 20),
                   const SizedBox(width: 8),
                   const Expanded(
-                    child: Text(
-                      'Dev: Inject incoming credit for testing',
-                      style: TextStyle(fontSize: 13),
-                    ),
+                    child: Text('Dev: Inject incoming credit for testing',
+                        style: TextStyle(fontSize: 13)),
                   ),
                   TextButton.icon(
                     onPressed: () => _devAddCreditDialog(context),
@@ -178,9 +166,7 @@ class _CreditBanner extends StatelessWidget {
               const Icon(Icons.notifications_active, size: 20),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  'رصيد وارد: ${total.toStringAsFixed(2)} دج — اضغط تأكيد لإضافته',
-                ),
+                child: Text('رصيد وارد: ${total.toStringAsFixed(2)} دج — اضغط تأكيد لإضافته'),
               ),
               const SizedBox(width: 12),
               Tooltip(
@@ -245,9 +231,7 @@ class _CreditBanner extends StatelessWidget {
             const SizedBox(height: 8),
             TextField(
               controller: noteCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Note (optional)',
-              ),
+              decoration: const InputDecoration(labelText: 'Note (optional)'),
             ),
           ],
         ),
@@ -283,8 +267,6 @@ class _CreditBanner extends StatelessWidget {
     }
   }
 }
-
-// -------- Tiles --------
 
 class _HomeGrid extends StatelessWidget {
   const _HomeGrid();
