@@ -57,17 +57,18 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
     if (!_form.currentState!.validate()) return;
     if (!_session.isOn || _session.current == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')),
+      );
       return;
     }
 
     setState(() => _busy = true);
     try {
-      final double price = double.tryParse(_price.text.trim()) ?? 0;
-      final int count = int.tryParse(_count.text.trim()) ?? 0;
-      final double total = price * count;
-      final String note = _note.text.trim();
+      final price = double.tryParse(_price.text.trim()) ?? 0;
+      final count = int.tryParse(_count.text.trim()) ?? 0;
+      final total = price * count;
+      final note = _note.text.trim();
 
       if (widget.edit == null) {
         final m = PurchaseModel(
@@ -95,17 +96,18 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
           note: note.isEmpty ? null : note,
           timestamp: old.timestamp,
         );
-        final String oldId = old.id; // تعريف صريح يزيل أي التباس
-        await PurchaseController().update(id: old.id.toString(), updated: updated);
+        await PurchaseController().update(
+          id: old.id.toString(),
+          updated: updated,
+        );
       }
 
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشل الحفظ: $e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('فشل الحفظ: $e')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -137,7 +139,8 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
                   if (!canWrite)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: Text('Session OFF — القراءة فقط', style: TextStyle(color: cs.outline)),
+                      child:
+                      Text('Session OFF — القراءة فقط', style: TextStyle(color: cs.outline)),
                     ),
                   TextFormField(
                     controller: _supplier,
@@ -171,7 +174,6 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
                     controller: _count,
                     decoration: const InputDecoration(labelText: 'العدد'),
                     keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.done,
                     enabled: canWrite,
                     validator: (v) {
                       final n = int.tryParse((v ?? '').trim());
