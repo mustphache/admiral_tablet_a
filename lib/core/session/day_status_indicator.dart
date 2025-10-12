@@ -1,4 +1,3 @@
-// lib/core/session/day_status_indicator.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
