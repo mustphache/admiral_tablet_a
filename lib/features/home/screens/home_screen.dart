@@ -8,6 +8,7 @@ import 'package:admiral_tablet_a/features/day_session/day_session_screen.dart';
 import 'package:admiral_tablet_a/features/day_session/purchases_screen.dart';
 import 'package:admiral_tablet_a/features/day_session/expenses_screen.dart';
 import 'package:admiral_tablet_a/features/wallet/screens/wallet_screen.dart';
+import 'package:admiral_tablet_a/features/day_session/reports_screen.dart'; // 👈 جديد
 
 import 'package:admiral_tablet_a/state/services/credit_inbox_store.dart';
 import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
@@ -94,6 +95,7 @@ class _HomeBodyState extends State<_HomeBody> {
   }
 }
 
+// -------- Session Switch (الوحيد) --------
 class _SessionSwitchCard extends StatelessWidget {
   final DaySessionController ctrl;
   const _SessionSwitchCard({required this.ctrl});
@@ -139,6 +141,7 @@ class _SessionSwitchCard extends StatelessWidget {
   }
 }
 
+// -------- Credit Inbox Banner --------
 class _CreditBanner extends StatelessWidget {
   final bool canConfirm;
   const _CreditBanner({required this.canConfirm});
@@ -165,8 +168,10 @@ class _CreditBanner extends StatelessWidget {
                   const Icon(Icons.construction, size: 20),
                   const SizedBox(width: 8),
                   const Expanded(
-                    child: Text('Dev: Inject incoming credit for testing',
-                        style: TextStyle(fontSize: 13)),
+                    child: Text(
+                      'Dev: Inject incoming credit for testing',
+                      style: TextStyle(fontSize: 13),
+                    ),
                   ),
                   TextButton.icon(
                     onPressed: () => _devAddCreditDialog(context),
@@ -316,6 +321,7 @@ class _HomeGrid extends StatelessWidget {
         ExpensesTile(),
         WalletTile(),
         EndOfDayTile(),
+        ReportsTile(), // 👈 جديد: الدخول للتقارير
       ],
     );
   }
@@ -411,6 +417,24 @@ class EndOfDayTile extends StatelessWidget {
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const DaySessionScreen()),
+        );
+      },
+    );
+  }
+}
+
+class ReportsTile extends StatelessWidget {
+  const ReportsTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return _HomeTile(
+      icon: Icons.analytics_outlined,
+      label: 'Reports',
+      locked: false,
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const ReportsScreen()),
         );
       },
     );
