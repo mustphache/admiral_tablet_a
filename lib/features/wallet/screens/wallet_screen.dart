@@ -1,20 +1,20 @@
 ﻿// lib/features/wallet/screens/wallet_screen.dart
 import 'package:flutter/material.dart';
 
-// Gate + الشارة
+// الجلسة والوضع
 import 'package:admiral_tablet_a/core/session/index.dart';
 import 'package:admiral_tablet_a/core/session/day_status_indicator.dart';
 
-// يوم + محفظة
+// الكنترولرز
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
 
-// إضافة حركة (شاشة عمل)
-import 'package:admiral_tablet_a/features/wallet/screens/add_wallet_movement_screen.dart';
-// سجل الحركات (عرض فقط)
-import 'package:admiral_tablet_a/features/wallet/screens/wallet_movements_screen.dart';
+// النماذج
+import 'package:admiral_tablet_a/data/models/wallet_quick_kind.dart';
 
-enum WalletQuickKind { deposit, withdraw, returnCash }
+// الشاشات الفرعية
+import 'package:admiral_tablet_a/features/wallet/screens/add_wallet_movement_screen.dart';
+import 'package:admiral_tablet_a/features/wallet/screens/wallet_movements_screen.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -34,8 +34,7 @@ class _WalletScreenState extends State<WalletScreen> {
       ),
     );
     if (ok == true && mounted) {
-      // بعد الإضافة نعيد البناء لتحديث الرصيد
-      setState(() {});
+      setState(() {}); // تحديث الرصيد بعد العملية
     }
   }
 
@@ -49,7 +48,7 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     return DaySessionGate(
-      allowWhenClosed: true, // المحفظة متاحة دائمًا
+      allowWhenClosed: true,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Wallet'),
@@ -224,26 +223,14 @@ class _ActionsGrid extends StatelessWidget {
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
       children: [
+        _ActionTile(icon: Icons.add_card, label: 'Deposit', onTap: onDeposit),
+        _ActionTile(icon: Icons.outbond, label: 'Withdraw', onTap: onWithdraw),
         _ActionTile(
-          icon: Icons.add_card,
-          label: 'Deposit',
-          onTap: onDeposit,
-        ),
+            icon: Icons.reply_all, label: 'Return cash', onTap: onReturn),
         _ActionTile(
-          icon: Icons.outbond,
-          label: 'Withdraw',
-          onTap: onWithdraw,
-        ),
-        _ActionTile(
-          icon: Icons.reply_all,
-          label: 'Return cash',
-          onTap: onReturn,
-        ),
-        _ActionTile(
-          icon: Icons.receipt_long,
-          label: 'Movements',
-          onTap: onMovements,
-        ),
+            icon: Icons.receipt_long,
+            label: 'Movements',
+            onTap: onMovements),
       ],
     );
   }
@@ -253,7 +240,11 @@ class _ActionTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const _ActionTile({required this.icon, required this.label, required this.onTap});
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
