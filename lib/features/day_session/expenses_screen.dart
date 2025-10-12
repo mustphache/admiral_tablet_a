@@ -6,7 +6,7 @@ import 'package:admiral_tablet_a/state/controllers/expense_controller.dart';
 import 'package:admiral_tablet_a/data/models/expense_model.dart';
 import 'package:admiral_tablet_a/core/time/time_formats.dart';
 
-import 'package:admiral_tablet_a/features/day_session/expense_add_screen.dart';
+import 'expense_add_screen.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -20,10 +20,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   List<ExpenseModel> _items = const [];
   bool _loading = true;
 
-  String get _todayId => TimeFmt.dayIdToday();
+  String get _dayId => TimeFmt.dayIdToday();
 
   Future<void> _reload() async {
-    _items = _ctrl.listByDay(_todayId);
+    _items = _ctrl.listByDay(_dayId);
     setState(() => _loading = false);
   }
 
@@ -35,7 +35,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<DaySessionController>(
+    return ChangeNotifierProvider(
       create: (_) => DaySessionController()..load(),
       child: Consumer<DaySessionController>(
         builder: (_, session, __) {
@@ -88,9 +88,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   final m = _items[i];
                   return Dismissible(
                     key: ValueKey('e_${m.id}'),
-                    direction: canWrite
-                        ? DismissDirection.endToStart
-                        : DismissDirection.none,
+                    direction:
+                    canWrite ? DismissDirection.endToStart : DismissDirection.none,
                     background: Container(
                       color: cs.errorContainer,
                       alignment: Alignment.centerRight,
@@ -100,9 +99,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     confirmDismiss: (_) async {
                       if (!canWrite) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Session OFF — الحذف ممنوع'),
-                          ),
+                          const SnackBar(content: Text('Session OFF — الحذف ممنوع')),
                         );
                         return false;
                       }
@@ -129,9 +126,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       await _ctrl.removeById(m.id);
                       await _reload();
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('تم الحذف')),
-                        );
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(const SnackBar(content: Text('تم الحذف')));
                       }
                     },
                     child: InkWell(
@@ -161,18 +157,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               onPressed: canWrite
                   ? () async {
                 final ok = await Navigator.of(context).push<bool>(
-                  MaterialPageRoute(
-                    builder: (_) => const ExpenseAddScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const ExpenseAddScreen()),
                 );
                 if (ok == true) _reload();
               }
                   : () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content:
-                    Text('Session OFF — فعّلها من الشاشة الرئيسية'),
-                  ),
+                  const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')),
                 );
               },
             ),
@@ -190,9 +181,11 @@ class _ExpenseTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = m.timestamp.toLocal().toString().split('.').first;
+    final title = m.kind.isEmpty ? '—' : m.kind;
+
     return ListTile(
       leading: const Icon(Icons.receipt_long_outlined),
-      title: Text(m.kind.isEmpty ? '—' : m.kind),
+      title: Text(title),
       subtitle: Text('ت: $date'),
       trailing: Text(
         '${m.amount.toStringAsFixed(2)} دج',
