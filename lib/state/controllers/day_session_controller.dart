@@ -1,4 +1,5 @@
-﻿import 'package:flutter/foundation.dart';
+﻿// lib/state/controllers/day_session_controller.dart
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // SSOT
@@ -8,6 +9,14 @@ import 'package:admiral_tablet_a/core/time/time_formats.dart';
 import 'package:admiral_tablet_a/state/services/audit_log_service.dart';
 import 'package:admiral_tablet_a/data/models/audit_event_model.dart';
 
+/// كائن بسيط للتوافق مع الكود القديم الذي يستدعي `day.current.id`
+class _LegacyDay {
+  final String id;
+  final DateTime startedAt;
+  const _LegacyDay({required this.id, required this.startedAt});
+}
+
+/// المتحكم الرسمي: Session ON/OFF
 class DaySessionController extends ChangeNotifier {
   static const _kOn = 'day_session_on_v1';
   static const _kStartedAt = 'day_session_started_at_v1';
@@ -15,8 +24,9 @@ class DaySessionController extends ChangeNotifier {
   bool _isOn = false;
   DateTime? _startedAtUtc;
 
-  bool get isOpen => _isOn; // للتوافق القديم
+  // الواجهة الجديدة
   bool get isOn => _isOn;
+  bool get isOpen => _isOn; // للتوافق
   DateTime? get startedAt => _startedAtUtc;
 
   Future<void> load() async {
@@ -31,7 +41,7 @@ class DaySessionController extends ChangeNotifier {
     final sp = await SharedPreferences.getInstance();
     await sp.setBool(_kOn, _isOn);
     if (_startedAtUtc != null) {
-      await sp.setString(_kStartedAt, _startedAtUtc!.toUtc().toIso8601String());
+      await sp.setString(_kStartedAt, _startedAtUtc!.toIso8601String());
     } else {
       await sp.remove(_kStartedAt);
     }
@@ -71,4 +81,28 @@ class DaySessionController extends ChangeNotifier {
       actor: actor,
     );
   }
+
+  // ========= طبقة التوافق مع الكود القديم =========
+
+  /// بعض الشاشات القديمة تستخدم `day.current?.id`.
+  /// نعيد كائن بسيط فيه `id` عند ON، و`null` عند OFF.
+  _LegacyDay? get current {
+    if (!_isOn) return null;
+    return _LegacyDay(
+      id: TimeFmt.dayIdToday(),
+      startedAt: (_startedAtUtc ?? DateTime.now().toUtc()).toLocal(),
+    );
+  }
+
+  /// الكود القديم يستدعي restore() عند الإقلاع.
+  Future<void> restore() => load();
+
+  /// أسماء قديمة مكافئة للتحكم بالحالة:
+  Future<void> openDay({String? actor}) => turnOn(actor: actor);
+  Future<void> closeDay({String? actor}) => turnOff(actor: actor);
+  Future<void> closeSession({String? actor}) => turnOff(actor: actor);
 }
+
+/// طبقة توافق إضافية: بعض الأماكن تُنشئ DaySessionStore()
+/// نجعلها ترث DaySessionController حتى يعمل الكود كما هو.
+class DaySessionStore extends DaySessionController {}
