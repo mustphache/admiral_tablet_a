@@ -34,7 +34,7 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
       final m = widget.edit;
       if (m != null) {
         _supplier.text = m.supplier;
-        _tagNumber.text = m.tagNumber;
+        _tagNumber.text = m.tagNumber ??'';
         _price.text = m.price.toStringAsFixed(2);
         _count.text = m.count.toString();
         _note.text = m.note ?? '';
