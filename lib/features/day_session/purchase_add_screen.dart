@@ -1,29 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import 'package:admiral_tablet_a/data/models/purchase_model.dart';
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/purchase_controller.dart';
 
-// ✅ Gate للنظام
-import 'package:admiral_tablet_a/core/session/index.dart';
-// ✅ محفظة
-import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
-
 class PurchaseAddScreen extends StatefulWidget {
   const PurchaseAddScreen({super.key});
-
   @override
   State createState() => _PurchaseAddScreenState();
 }
 
 class _PurchaseAddScreenState extends State {
   final _form = GlobalKey<FormState>();
-
   final _supplier = TextEditingController();
   final _tagNumber = TextEditingController();
   final _price = TextEditingController();
   final _count = TextEditingController();
   final _note = TextEditingController();
-
   bool _busy = false;
 
   @override
@@ -38,18 +32,18 @@ class _PurchaseAddScreenState extends State {
 
   Future _save() async {
     if (!_form.currentState!.validate()) return;
+    final day = Provider.of<DaySessionController>(context, listen: false);
+
+    if (!day.isOn || day.current == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')),
+      );
+      return;
+    }
+
     setState(() => _busy = true);
     try {
-      final day = DaySessionController();
-
-      if (!day.isOpen || day.current == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('اليوم مغلق — افتح يوم جديد أولًا')),
-        );
-        return;
-      }
-
       final price = double.tryParse(_price.text.trim()) ?? 0;
       final count = int.tryParse(_count.text.trim()) ?? 0;
       final total = price * count;
@@ -67,14 +61,6 @@ class _PurchaseAddScreenState extends State {
       );
 
       await PurchaseController().add(m);
-
-      // ✅ خصم تلقائي من المحفظة
-      await WalletController().addSpendPurchase(
-        dayId: day.current!.id,
-        amount: total,
-        note: 'Purchase: ${_supplier.text.trim()}',
-      );
-
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
@@ -89,79 +75,93 @@ class _PurchaseAddScreenState extends State {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
-    return DaySessionGate(
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('إضافة شراء'),
-        ),
-        body: Form(
-          key: _form,
-          child: ListView(
-            padding: const EdgeInsets.all(12),
-            children: [
-              TextFormField(
-                controller: _supplier,
-                decoration: const InputDecoration(labelText: 'المورّد'),
-                textInputAction: TextInputAction.next,
-                validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'أدخل المورّد' : null,
+    return ChangeNotifierProvider<DaySessionController>(
+      create: (_) => DaySessionController()..load(),
+      child: Consumer<DaySessionController>(
+        builder: (_, s, __) {
+          final canWrite = s.isOn;
+          return Scaffold(
+            appBar: AppBar(title: const Text('إضافة شراء')),
+            body: Form(
+              key: _form,
+              child: ListView(
+                padding: const EdgeInsets.all(12),
+                children: [
+                  if (!canWrite)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text('Session OFF — القراءة فقط',
+                          style: TextStyle(color: cs.outline)),
+                    ),
+                  TextFormField(
+                    controller: _supplier,
+                    decoration: const InputDecoration(labelText: 'المورّد'),
+                    textInputAction: TextInputAction.next,
+                    enabled: canWrite,
+                    validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'أدخل المورّد' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _tagNumber,
+                    decoration: const InputDecoration(labelText: 'رقم الكاتم'),
+                    textInputAction: TextInputAction.next,
+                    enabled: canWrite,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _price,
+                    decoration: const InputDecoration(labelText: 'السعر'),
+                    keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                    textInputAction: TextInputAction.next,
+                    enabled: canWrite,
+                    validator: (v) {
+                      final n = double.tryParse((v ?? '').trim());
+                      if (n == null || n <= 0) return 'أدخل سعرًا صحيحًا';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _count,
+                    decoration: const InputDecoration(labelText: 'العدد'),
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    enabled: canWrite,
+                    validator: (v) {
+                      final n = int.tryParse((v ?? '').trim());
+                      if (n == null || n <= 0) return 'أدخل عددًا صحيحًا';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _note,
+                    decoration:
+                    const InputDecoration(labelText: 'ملاحظات (اختياري)'),
+                    minLines: 1,
+                    maxLines: 3,
+                    enabled: canWrite,
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: (!canWrite || _busy) ? null : _save,
+                    icon: const Icon(Icons.save),
+                    label: _busy
+                        ? const Text('جارٍ الحفظ…')
+                        : const Text('حفظ'),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_busy)
+                    LinearProgressIndicator(
+                      backgroundColor: cs.surfaceVariant,
+                    ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _tagNumber,
-                decoration: const InputDecoration(labelText: 'رقم الكاتم'),
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _price,
-                decoration: const InputDecoration(labelText: 'السعر'),
-                keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
-                textInputAction: TextInputAction.next,
-                validator: (v) {
-                  final n = double.tryParse((v ?? '').trim());
-                  if (n == null || n <= 0) return 'أدخل سعرًا صحيحًا';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _count,
-                decoration: const InputDecoration(labelText: 'العدد'),
-                keyboardType: TextInputType.number,
-                textInputAction: TextInputAction.next,
-                validator: (v) {
-                  final n = int.tryParse((v ?? '').trim());
-                  if (n == null || n <= 0) return 'أدخل عددًا صحيحًا';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _note,
-                decoration:
-                const InputDecoration(labelText: 'ملاحظات (اختياري)'),
-                minLines: 1,
-                maxLines: 3,
-              ),
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: _busy ? null : _save,
-                icon: const Icon(Icons.save),
-                label: _busy
-                    ? const Text('جارٍ الحفظ…')
-                    : const Text('حفظ'),
-              ),
-              const SizedBox(height: 8),
-              if (_busy)
-                LinearProgressIndicator(
-                  backgroundColor: cs.surfaceVariant,
-                ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
