@@ -2,5 +2,5 @@
 class Policy {
   static bool canAddPurchase({required bool dayOpen}) => dayOpen;
   static bool canAddExpense({required bool dayOpen}) => dayOpen;
-  static bool canUseWallet() => true; // حسب سياستك الحالية
+  static bool canUseWallet() => true; // حسب السياسة الحالية للمشروع
 }
