@@ -34,13 +34,15 @@ class PurchaseController {
   // توافق مؤقت
   List<PurchaseModel> getByDay(String d) => listByDay(d);
   double totalForDay(String d) => listByDay(d).fold(0, (s, e) => s + e.total);
-  void restore() {} // لم تعد مطلوبة
+  void restore() {}
 
   // إضافة + خصم من المحفظة + حفظ
   Future<void> add(PurchaseModel m) async {
     await load();
     _items.add(m);
     await _persist();
+
+    // أثر محفظة: خصم كامل قيمة الشراء
     await WalletController().addSpendPurchase(
       dayId: m.sessionId,
       amount: m.total,
@@ -48,7 +50,49 @@ class PurchaseController {
     );
   }
 
-  // تحويلات خفيفة (بدون لمس الموديل الأصلي)
+  // تحديث + فرق المحفظة + حفظ
+  Future<void> update({
+    required String id,
+    required PurchaseModel updated,
+  }) async {
+    await load();
+    final idx = _items.indexWhere((e) => e.id == id);
+    if (idx == -1) return;
+
+    final old = _items[idx];
+    _items[idx] = updated;
+    await _persist();
+
+    // فرق محفظة: الزيادة تخصم، النقصان يُعاد للمحفظة
+    final delta = updated.total - old.total;
+    if (delta != 0) {
+      // delta>0 => خصم إضافي، delta<0 => إرجاع
+      await WalletController().addMovement(
+        dayId: updated.sessionId,
+        type: WalletType.purchase,
+        amount: -delta, // عكس الإشارة: زيادة الإنفاق = -delta
+        note: 'Purchase edit delta (${updated.id})',
+      );
+    }
+  }
+
+  // حذف + عكس أثر المحفظة + حفظ
+  Future<void> removeById(String id) async {
+    await load();
+    final idx = _items.indexWhere((e) => e.id == id);
+    if (idx == -1) return;
+
+    final m = _items.removeAt(idx);
+    await _persist();
+
+    // عكس الأثر: إعادة كامل قيمة الشراء للمحفظة
+    await WalletController().addRefund(
+      dayId: m.sessionId,
+      amount: m.total,
+      note: 'Purchase deleted (${m.id})',
+    );
+  }
+
   Map<String, dynamic> _toMap(PurchaseModel m) => {
     'id': m.id,
     'sessionId': m.sessionId,
