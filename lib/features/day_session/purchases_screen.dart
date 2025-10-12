@@ -1,205 +1,189 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:admiral_tablet_a/data/models/purchase_model.dart';
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/purchase_controller.dart';
+import 'package:admiral_tablet_a/data/models/purchase_model.dart';
+import 'package:admiral_tablet_a/core/time/time_formats.dart';
 
-class PurchaseAddScreen extends StatefulWidget {
-  final PurchaseModel? edit;
-  const PurchaseAddScreen({super.key, this.edit});
+import 'purchase_add_screen.dart';
+
+class PurchasesScreen extends StatefulWidget {
+  const PurchasesScreen({super.key});
 
   @override
-  State createState() => _PurchaseAddScreenState();
+  State<PurchasesScreen> createState() => _PurchasesScreenState();
 }
 
-class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
-  final _form = GlobalKey<FormState>();
-  final _supplier = TextEditingController();
-  final _tagNumber = TextEditingController();
-  final _price = TextEditingController();
-  final _count = TextEditingController();
-  final _note = TextEditingController();
-
-  late final DaySessionController _session;
+class _PurchasesScreenState extends State<PurchasesScreen> {
+  final _ctrl = PurchaseController();
+  List<PurchaseModel> _items = const [];
   bool _loading = true;
-  bool _busy = false;
+
+  String get _dayId => TimeFmt.dayIdToday();
+
+  Future<void> _reload() async {
+    _items = _ctrl.listByDay(_dayId);
+    setState(() => _loading = false);
+  }
 
   @override
   void initState() {
     super.initState();
-    _session = DaySessionController();
-    _session.load().then((_) {
-      if (!mounted) return;
-      final m = widget.edit;
-      if (m != null) {
-        _supplier.text = m.supplier;
-        _tagNumber.text = m.tagNumber;
-        _price.text = m.price.toStringAsFixed(2);
-        _count.text = m.count.toString();
-        _note.text = m.note ?? '';
-      }
-      setState(() => _loading = false);
-    });
-  }
-
-  @override
-  void dispose() {
-    _supplier.dispose();
-    _tagNumber.dispose();
-    _price.dispose();
-    _count.dispose();
-    _note.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    if (!_form.currentState!.validate()) return;
-    if (!_session.isOn || _session.current == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')),
-      );
-      return;
-    }
-
-    setState(() => _busy = true);
-    try {
-      final price = double.tryParse(_price.text.trim()) ?? 0;
-      final count = int.tryParse(_count.text.trim()) ?? 0;
-      final total = price * count;
-      final note = _note.text.trim();
-
-      if (widget.edit == null) {
-        final m = PurchaseModel(
-          id: DateTime.now().microsecondsSinceEpoch.toString(),
-          sessionId: _session.current!.id,
-          supplier: _supplier.text.trim(),
-          tagNumber: _tagNumber.text.trim(),
-          price: price,
-          count: count,
-          total: total,
-          note: note.isEmpty ? null : note,
-          timestamp: DateTime.now(),
-        );
-        await PurchaseController().add(m);
-      } else {
-        final old = widget.edit!;
-        final updated = PurchaseModel(
-          id: old.id,
-          sessionId: old.sessionId,
-          supplier: _supplier.text.trim(),
-          tagNumber: _tagNumber.text.trim(),
-          price: price,
-          count: count,
-          total: total,
-          note: note.isEmpty ? null : note,
-          timestamp: old.timestamp,
-        );
-        await PurchaseController().update(
-          id: old.id.toString(),
-          updated: updated,
-        );
-      }
-
-      if (!mounted) return;
-      Navigator.pop(context, true);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('فشل الحفظ: $e')));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+    PurchaseController().load().then((_) => mounted ? _reload() : null);
   }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    if (_loading) {
-      return Scaffold(
-        appBar: AppBar(title: Text(widget.edit == null ? 'إضافة شراء' : 'تعديل شراء')),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    return ChangeNotifierProvider<DaySessionController>.value(
-      value: _session,
+    return ChangeNotifierProvider(
+      create: (_) => DaySessionController()..load(),
       child: Consumer<DaySessionController>(
-        builder: (_, s, __) {
-          final canWrite = s.isOn;
+        builder: (_, session, __) {
+          final canWrite = session.isOn;
+          final cs = Theme.of(context).colorScheme;
+
+          if (_loading) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Purchases')),
+              body: const Center(child: CircularProgressIndicator()),
+            );
+          }
+
           return Scaffold(
-            appBar: AppBar(title: Text(widget.edit == null ? 'إضافة شراء' : 'تعديل شراء')),
-            body: Form(
-              key: _form,
-              child: ListView(
-                padding: const EdgeInsets.all(12),
+            appBar: AppBar(title: const Text('Purchases')),
+            body: RefreshIndicator(
+              onRefresh: _reload,
+              child: _items.isEmpty
+                  ? ListView(
                 children: [
-                  if (!canWrite)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child:
-                      Text('Session OFF — القراءة فقط', style: TextStyle(color: cs.outline)),
+                  const SizedBox(height: 40),
+                  Center(
+                    child: Text(
+                      'لا توجد مشتريات لليوم.',
+                      style: TextStyle(color: cs.outline),
                     ),
-                  TextFormField(
-                    controller: _supplier,
-                    decoration: const InputDecoration(labelText: 'المورد'),
-                    textInputAction: TextInputAction.next,
-                    enabled: canWrite,
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'أدخل المورد' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _tagNumber,
-                    decoration: const InputDecoration(labelText: 'رقم الخاتم'),
-                    textInputAction: TextInputAction.next,
-                    enabled: canWrite,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _price,
-                    decoration: const InputDecoration(labelText: 'السعر'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    textInputAction: TextInputAction.next,
-                    enabled: canWrite,
-                    validator: (v) {
-                      final n = double.tryParse((v ?? '').trim());
-                      if (n == null || n <= 0) return 'أدخل سعرًا صحيحًا';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _count,
-                    decoration: const InputDecoration(labelText: 'العدد'),
-                    keyboardType: TextInputType.number,
-                    enabled: canWrite,
-                    validator: (v) {
-                      final n = int.tryParse((v ?? '').trim());
-                      if (n == null || n <= 0) return 'أدخل عددًا صحيحًا';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _note,
-                    decoration: const InputDecoration(labelText: 'ملاحظات (اختياري)'),
-                    minLines: 1,
-                    maxLines: 3,
-                    enabled: canWrite,
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: (!canWrite || _busy) ? null : _save,
-                    icon: const Icon(Icons.save),
-                    label: _busy ? const Text('جارٍ الحفظ…') : const Text('حفظ'),
                   ),
                 ],
+              )
+                  : ListView.separated(
+                padding: const EdgeInsets.all(12),
+                itemCount: _items.length,
+                separatorBuilder: (_, __) => const Divider(height: 4),
+                itemBuilder: (_, i) {
+                  final m = _items[i];
+                  return Dismissible(
+                    key: ValueKey('p_${m.id}'),
+                    direction:
+                    canWrite ? DismissDirection.endToStart : DismissDirection.none,
+                    background: Container(
+                      color: cs.errorContainer,
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Icon(Icons.delete, color: cs.onErrorContainer),
+                    ),
+                    confirmDismiss: (_) async {
+                      if (!canWrite) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Session OFF — الحذف ممنوع')),
+                        );
+                        return false;
+                      }
+                      return await showDialog<bool>(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          title: const Text('حذف شراء'),
+                          content: const Text('تأكيد حذف هذه العملية؟ سيتم عكس أثرها على المحفظة.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(c, false),
+                              child: const Text('إلغاء'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(c, true),
+                              child: const Text('حذف'),
+                            ),
+                          ],
+                        ),
+                      ) ??
+                          false;
+                    },
+                    onDismissed: (_) async {
+                      await _ctrl.removeById(m.id.toString());
+                      await _reload();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(const SnackBar(content: Text('تم الحذف')));
+                      }
+                    },
+                    child: InkWell(
+                      onTap: () async {
+                        if (!canWrite) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Session OFF — التعديل ممنوع')),
+                          );
+                          return;
+                        }
+                        final ok = await Navigator.of(context).push<bool>(
+                          MaterialPageRoute(
+                            builder: (_) => PurchaseAddScreen(edit: m),
+                          ),
+                        );
+                        if (ok == true) _reload();
+                      },
+                      child: _PurchaseTile(m),
+                    ),
+                  );
+                },
               ),
+            ),
+            floatingActionButton: FloatingActionButton.extended(
+              icon: const Icon(Icons.add),
+              label: const Text('Add purchase'),
+              onPressed: canWrite
+                  ? () async {
+                final ok = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(builder: (_) => const PurchaseAddScreen()),
+                );
+                if (ok == true) _reload();
+              }
+                  : () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')),
+                );
+              },
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _PurchaseTile extends StatelessWidget {
+  final PurchaseModel m;
+  const _PurchaseTile(this.m);
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final date = m.timestamp.toLocal().toString().split('.').first;
+
+    final supplier = m.supplier.isEmpty ? '—' : m.supplier;
+    final ring = (m.tagNumber ?? '').isNotEmpty ? ' • خاتم: ${m.tagNumber}' : '';
+
+    return ListTile(
+      leading: const Icon(Icons.shopping_bag_outlined),
+      title: Text(supplier),
+      subtitle: Text('ت: $date$ring'),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text('${m.total.toStringAsFixed(2)} دج',
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text('(${m.count} × ${m.price.toStringAsFixed(2)})',
+              style: TextStyle(color: cs.outline, fontSize: 12)),
+        ],
       ),
     );
   }
