@@ -12,6 +12,9 @@ import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
 // النماذج
 import 'package:admiral_tablet_a/data/models/wallet_quick_kind.dart';
 
+// SSOT: المال
+import 'package:admiral_tablet_a/core/money/money.dart';
+
 // الشاشات الفرعية
 import 'package:admiral_tablet_a/features/wallet/screens/add_wallet_movement_screen.dart';
 import 'package:admiral_tablet_a/features/wallet/screens/wallet_movements_screen.dart';
@@ -81,8 +84,7 @@ class _BalanceHeader extends StatelessWidget {
 
   const _BalanceHeader({required this.wallet, required this.day});
 
-  double get _totalAll =>
-      wallet.items.fold(0.0, (s, e) => s + e.amount);
+  double get _totalAll => wallet.items.fold(0.0, (s, e) => s + e.amount);
 
   double get _todayTotal {
     if (!(day.isOpen && day.current != null)) return 0.0;
@@ -106,7 +108,7 @@ class _BalanceHeader extends StatelessWidget {
             Expanded(
               child: _BalanceCard(
                 title: 'Total',
-                value: _fmt(_totalAll),
+                value: Money.fmt(_totalAll),
                 color: cs.primary,
               ),
             ),
@@ -118,7 +120,7 @@ class _BalanceHeader extends StatelessWidget {
                   title: (day.isOpen && day.current != null)
                       ? 'This day'
                       : 'This day (closed)',
-                  value: _fmt(_todayTotal),
+                  value: Money.fmt(_todayTotal),
                   color: cs.tertiary,
                 ),
               ),
@@ -136,12 +138,6 @@ class _BalanceHeader extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  static String _fmt(double v) {
-    final s = v.toStringAsFixed(2);
-    final rx = RegExp(r'\B(?=(\d{3})+(?!\d))');
-    return s.replaceAllMapped(rx, (m) => ',');
   }
 }
 
