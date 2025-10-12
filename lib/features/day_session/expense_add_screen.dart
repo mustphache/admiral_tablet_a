@@ -7,7 +7,6 @@ import 'package:admiral_tablet_a/state/controllers/expense_controller.dart';
 
 class ExpenseAddScreen extends StatefulWidget {
   final ExpenseModel? edit;
-
   const ExpenseAddScreen({super.key, this.edit});
 
   @override
@@ -30,10 +29,11 @@ class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
     _session = DaySessionController();
     _session.load().then((_) {
       if (!mounted) return;
-      if (widget.edit != null) {
-        _kind.text = widget.edit!.kind;
-        _amount.text = widget.edit!.amount.toStringAsFixed(2);
-        _note.text = widget.edit!.note ?? '';
+      final m = widget.edit;
+      if (m != null) {
+        _kind.text = m.kind;
+        _amount.text = m.amount.toStringAsFixed(2);
+        _note.text = m.note ?? '';
       }
       setState(() => _loading = false);
     });
@@ -47,19 +47,19 @@ class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
     super.dispose();
   }
 
-  Future _save() async {
+  Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
     if (!_session.isOn || _session.current == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')));
       return;
     }
 
     setState(() => _busy = true);
     try {
       final amount = double.tryParse(_amount.text.trim()) ?? 0;
+      final note = _note.text.trim();
 
       if (widget.edit == null) {
         final m = ExpenseModel(
@@ -67,7 +67,7 @@ class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
           sessionId: _session.current!.id,
           kind: _kind.text.trim(),
           amount: amount,
-          note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+          note: note.isEmpty ? null : note,
           timestamp: DateTime.now(),
         );
         await ExpenseController().add(m);
@@ -78,10 +78,13 @@ class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
           sessionId: old.sessionId,
           kind: _kind.text.trim(),
           amount: amount,
-          note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+          note: note.isEmpty ? null : note,
           timestamp: old.timestamp,
         );
-        await ExpenseController().update(id: old.id, updated: updated);
+        await ExpenseController().update(
+          id: old.id.toString(),
+          updated: updated,
+        );
       }
 
       if (!mounted) return;
@@ -121,23 +124,21 @@ class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
                   if (!canWrite)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: Text('Session OFF — القراءة فقط',
-                          style: TextStyle(color: cs.outline)),
+                      child:
+                      Text('Session OFF — القراءة فقط', style: TextStyle(color: cs.outline)),
                     ),
                   TextFormField(
                     controller: _kind,
                     decoration: const InputDecoration(labelText: 'النوع'),
                     textInputAction: TextInputAction.next,
                     enabled: canWrite,
-                    validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'أدخل النوع' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'أدخل النوع' : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _amount,
                     decoration: const InputDecoration(labelText: 'المبلغ'),
-                    keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     enabled: canWrite,
                     validator: (v) {
                       final n = double.tryParse((v ?? '').trim());
@@ -148,8 +149,7 @@ class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _note,
-                    decoration:
-                    const InputDecoration(labelText: 'ملاحظات (اختياري)'),
+                    decoration: const InputDecoration(labelText: 'ملاحظات (اختياري)'),
                     minLines: 1,
                     maxLines: 3,
                     enabled: canWrite,
@@ -158,15 +158,8 @@ class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
                   FilledButton.icon(
                     onPressed: (!canWrite || _busy) ? null : _save,
                     icon: const Icon(Icons.save),
-                    label: _busy
-                        ? const Text('جارٍ الحفظ…')
-                        : const Text('حفظ'),
+                    label: _busy ? const Text('جارٍ الحفظ…') : const Text('حفظ'),
                   ),
-                  const SizedBox(height: 8),
-                  if (_busy)
-                    LinearProgressIndicator(
-                      backgroundColor: cs.surfaceVariant,
-                    ),
                 ],
               ),
             ),
