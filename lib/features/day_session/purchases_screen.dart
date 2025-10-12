@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/purchase_controller.dart';
+import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
 import 'package:admiral_tablet_a/data/models/purchase_model.dart';
 import 'package:admiral_tablet_a/core/time/time_formats.dart';
 
@@ -108,6 +109,11 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                           false;
                     },
                     onDismissed: (_) async {
+                      await WalletController().addRefund(
+                        dayId: _dayId,
+                        amount: m.total,
+                        note: 'Delete purchase refund #${m.id}',
+                      );
                       await _ctrl.removeById(m.id.toString());
                       await _reload();
                       if (mounted) {
