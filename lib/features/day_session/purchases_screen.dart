@@ -103,9 +103,14 @@ class _PurchaseTile extends StatelessWidget {
     return ListTile(
       leading: const Icon(Icons.shopping_bag_outlined),
       title: Text(m.supplier.isEmpty ? '—' : m.supplier),
-      subtitle: Text(
-        Text((m.tagNumber ?? '').isNotEmpty ? 'خاتم: ${m.tagNumber}' : ''),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (m.supplier.isNotEmpty) Text('المورد: ${m.supplier}'),
+          if ((m.tagNumber ?? '').isNotEmpty) Text('خاتم: ${m.tagNumber}'),
+        ],
       ),
+
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
