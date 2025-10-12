@@ -22,9 +22,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   String get _todayId => TimeFmt.dayIdToday();
 
   void _reload() {
-    final all = _ctrl.items; // نفترض نفس نمط Wallet/Purchase
-    _items = all.where((e) => e.sessionId == _todayId).toList()
-      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    _items = _ctrl.listByDay(_todayId);
     setState(() {});
   }
 
@@ -115,8 +113,7 @@ class _ExpenseTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final date =
-        m.timestamp.toLocal().toString().split('.').first; // عرض مختصر
+    final date = m.timestamp.toLocal().toString().split('.').first;
 
     return ListTile(
       leading: const Icon(Icons.receipt_long_outlined),
