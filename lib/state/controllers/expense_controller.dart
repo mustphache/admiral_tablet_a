@@ -1,46 +1,67 @@
 ﻿import 'package:admiral_tablet_a/data/models/expense_model.dart';
 import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
+import 'package:admiral_tablet_a/state/services/kv_store.dart';
 
-/// وحدة التحكم في المصاريف (محلية حالياً)
 class ExpenseController {
   ExpenseController._internal();
   static final ExpenseController _instance = ExpenseController._internal();
   factory ExpenseController() => _instance;
 
-  final List<ExpenseModel> _items = [];
+  static const _kStore = 'expenses_store_v1';
 
-  /// كل العناصر (للعرض أو التقارير)
+  final List<ExpenseModel> _items = [];
+  bool _loaded = false;
+
   List<ExpenseModel> get items => List.unmodifiable(_items);
 
-  /// إرجاع المصاريف ليوم معين
+  Future<void> load() async {
+    if (_loaded) return;
+    final list = await KvStore.getList(_kStore);
+    _items
+      ..clear()
+      ..addAll(list.map(_fromMap));
+    _loaded = true;
+  }
+
+  Future<void> _persist() async {
+    await KvStore.setList(_kStore, _items.map(_toMap).toList());
+  }
+
   List<ExpenseModel> listByDay(String dayId) =>
       _items.where((e) => e.sessionId == dayId).toList()
         ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-  // ----------------- توافق مؤقت مع الشاشات القديمة -----------------
-  List<ExpenseModel> getByDay(String dayId) => listByDay(dayId);
-  double totalForDay(String dayId) =>
-      listByDay(dayId).fold(0, (s, e) => s + e.amount);
+  // توافق مؤقت
+  List<ExpenseModel> getByDay(String d) => listByDay(d);
+  double totalForDay(String d) => listByDay(d).fold(0, (s, e) => s + e.amount);
   void restore() {}
-  // ------------------------------------------------------------------
 
-  /// إضافة مصروف جديد + خصم تلقائي من المحفظة
-  ///
-  /// المبلغ المخصوم = `amount` للمصروف.
-  /// يتم التسجيل تحت `dayId = m.sessionId` (وهو dayIdToday حالياً).
   Future<void> add(ExpenseModel m) async {
-    // 1) خزّن العملية في الذاكرة
+    await load();
     _items.add(m);
-
-    // 2) خصم تلقائي من المحفظة
-    try {
-      await WalletController().addSpendExpense(
-        dayId: m.sessionId,
-        amount: m.amount,
-        note: 'Expense #${m.id}',
-      );
-    } catch (_) {
-      // نفس الملاحظة كما في المشتريات.
-    }
+    await _persist();
+    await WalletController().addSpendExpense(
+      dayId: m.sessionId,
+      amount: m.amount,
+      note: 'Expense #${m.id}',
+    );
   }
+
+  Map<String, dynamic> _toMap(ExpenseModel m) => {
+    'id': m.id,
+    'sessionId': m.sessionId,
+    'kind': m.kind,
+    'amount': m.amount,
+    'timestamp': m.timestamp.toIso8601String(),
+    'note': m.note,
+  };
+
+  ExpenseModel _fromMap(Map<String, dynamic> m) => ExpenseModel(
+    id: m['id'] as String,
+    sessionId: m['sessionId'] as String,
+    kind: (m['kind'] as String?) ?? '',
+    amount: (m['amount'] as num).toDouble(),
+    timestamp: DateTime.parse(m['timestamp'] as String),
+    note: m['note'] as String?,
+  );
 }
