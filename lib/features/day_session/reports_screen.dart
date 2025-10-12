@@ -1,19 +1,13 @@
-﻿import 'dart:io';
-import 'dart:typed_data';
+﻿import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:printing/printing.dart';
-
-import 'package:admiral_tablet_a/common/helpers/utils.dart'; // todayISO()
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/purchase_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/expense_controller.dart';
+import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
+import 'package:admiral_tablet_a/core/time/time_formats.dart';
 import 'package:admiral_tablet_a/data/models/purchase_model.dart';
 import 'package:admiral_tablet_a/data/models/expense_model.dart';
-
-import 'package:admiral_tablet_a/features/day_session/report_pdf.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -23,225 +17,217 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  final _dayCtrl = DaySessionController();
-  final _pCtrl = PurchaseController();
-  final _eCtrl = ExpenseController();
+  final _p = PurchaseController();
+  final _e = ExpenseController();
+  final _w = WalletController();
 
-  final _df = DateFormat('yyyy-MM-dd');
-
-  String _dayId = todayISO();
-  bool _loading = false;
-
-  // KPIs
-  double _openingCash = 0;
+  late String _dayId;
+  List<PurchaseModel> _purchases = const [];
+  List<ExpenseModel> _expenses = const [];
   double _purchasesTotal = 0;
   double _expensesTotal = 0;
-  int _purchasesCount = 0;
-  int _expensesCount = 0;
+  double _walletTotal = 0;
 
-  double get _balance => _openingCash - _purchasesTotal - _expensesTotal;
-
-  Future<Directory?> _androidDownloadsDir() async {
-    try {
-      final dirs =
-      await getExternalStorageDirectories(type: StorageDirectory.downloads);
-      if (dirs != null && dirs.isNotEmpty) return dirs.first;
-    } catch (_) {}
-    return null;
+  void _reload() {
+    _dayId = TimeFmt.dayIdToday();
+    _purchases = _p.listByDay(_dayId);
+    _expenses = _e.listByDay(_dayId);
+    _purchasesTotal = _p.totalForDay(_dayId);
+    _expensesTotal = _e.totalForDay(_dayId);
+    _walletTotal = _w.totalForDay(_dayId);
+    setState(() {});
   }
 
-  Future<Uint8List> _buildPdfBytes() async {
-    final List<PurchaseModel> purchases = await _pCtrl.getByDay(_dayId);
-    final List<ExpenseModel> expenses = await _eCtrl.getByDay(_dayId);
-
-    final opening = _dayCtrl.current?.openingCash ?? 0;
-    final purchasesTotal = purchases.fold<double>(
-      0,
-          (s, p) => s + (p.total ?? (p.price ?? 0)),
-    );
-    final expensesTotal = expenses.fold<double>(
-      0,
-          (s, e) => s + (e.amount ?? 0),
-    );
-    final balance = opening - purchasesTotal - expensesTotal;
-
-    _openingCash = opening;
-    _purchasesTotal = purchasesTotal;
-    _expensesTotal = expensesTotal;
-    _purchasesCount = purchases.length;
-    _expensesCount = expenses.length;
-
-    final data = ReportPdfData(
-      dayId: _dayId,
-      market: (_dayCtrl.current?.id == _dayId) ? (_dayCtrl.current?.market ?? '') : '',
-      openingCash: opening,
-      purchases: purchases,
-      expenses: expenses,
-      purchasesTotal: purchasesTotal,
-      expensesTotal: expensesTotal,
-      balance: balance,
-    );
-
-    return buildDayReportPdf(data);
-  }
-
-  Future<void> _shareOnly(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
-    setState(() => _loading = true);
-    try {
-      final bytes = await _buildPdfBytes();
-      await Printing.sharePdf(bytes: bytes, filename: 'report-$_dayId.pdf');
-      messenger.showSnackBar(const SnackBar(content: Text('تمت مشاركة PDF بنجاح')));
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('فشل مشاركة PDF: $e')));
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _saveOnly(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
-    setState(() => _loading = true);
-    try {
-      final bytes = await _buildPdfBytes();
-      final dir = await _androidDownloadsDir();
-      if (dir == null) {
-        messenger.showSnackBar(const SnackBar(content: Text('تعذّر العثور على مجلد التنزيلات')));
-      } else {
-        final file = File('${dir.path}/report-$_dayId.pdf');
-        await file.writeAsBytes(bytes);
-        messenger.showSnackBar(SnackBar(content: Text('تم الحفظ: ${file.path}')));
-      }
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('فشل الحفظ: $e')));
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _pickDay() async {
-    final now = DateTime.now();
-    final initial = DateTime.tryParse(_dayId) ?? now;
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(now.year - 2),
-      lastDate: DateTime(now.year + 2),
-    );
-    if (picked == null) return;
-    setState(() => _dayId = _df.format(picked));
+  @override
+  void initState() {
+    super.initState();
+    _reload();
   }
 
   @override
   Widget build(BuildContext context) {
-    final closed = !DaySessionController().isOpen;
+    return ChangeNotifierProvider<DaySessionController>(
+      create: (_) => DaySessionController()..load(),
+      child: Consumer<DaySessionController>(
+        builder: (_, session, __) {
+          final cs = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('تقارير اليوم'),
-        actions: [
-          IconButton(
-            tooltip: 'اختيار يوم',
-            onPressed: _pickDay,
-            icon: const Icon(Icons.calendar_today),
-          ),
-          IconButton(
-            tooltip: 'حفظ PDF',
-            onPressed: _loading ? null : () => _saveOnly(context),
-            icon: _loading
-                ? const SizedBox(
-                width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.download),
-          ),
-          IconButton(
-            tooltip: 'مشاركة PDF',
-            onPressed: _loading ? null : () => _shareOnly(context),
-            icon: const Icon(Icons.ios_share),
-          ),
-          // زر إقفال اليوم
-          IconButton(
-            tooltip: closed ? 'اليوم مُغلق' : 'إقفال اليوم',
-            onPressed: closed
-                ? null
-                : () async {
-              setState(() => _loading = true);
-              try {
-                await DaySessionController().closeSession();
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('تم إقفال اليوم')),
-                );
-                setState(() {});
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('فشل إقفال اليوم: $e')),
-                );
-              } finally {
-                if (!mounted) return;
-                setState(() => _loading = false);
-              }
-            },
-            icon: Icon(closed ? Icons.lock : Icons.lock_outline),
-          ),
-        ],
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('تقارير اليوم'),
+              actions: [
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 12),
+                    child: Text(
+                      '$_dayId',
+                      style: TextStyle(color: cs.outline),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            body: RefreshIndicator(
+              onRefresh: () async => _reload(),
+              child: ListView(
+                padding: const EdgeInsets.all(12),
+                children: [
+                  _HeaderTotals(
+                    purchases: _purchasesTotal,
+                    expenses: _expensesTotal,
+                    wallet: _walletTotal,
+                  ),
+                  const SizedBox(height: 16),
+                  Text('المشتريات (${_purchases.length})',
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  if (_purchases.isEmpty)
+                    _Empty('لا توجد مشتريات.')
+                  else
+                    ..._purchases
+                        .map((m) => _PurchaseRow(m))
+                        .toList(growable: false),
+                  const SizedBox(height: 16),
+                  Text('المصاريف (${_expenses.length})',
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  if (_expenses.isEmpty)
+                    _Empty('لا توجد مصاريف.')
+                  else
+                    ..._expenses
+                        .map((m) => _ExpenseRow(m))
+                        .toList(growable: false),
+                ],
+              ),
+            ),
+          );
+        },
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+    );
+  }
+}
+
+class _HeaderTotals extends StatelessWidget {
+  final double purchases;
+  final double expenses;
+  final double wallet;
+
+  const _HeaderTotals({
+    required this.purchases,
+    required this.expenses,
+    required this.wallet,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        _TotalChip('مشتريات', purchases, Icons.shopping_bag_outlined, cs.primary),
+        const SizedBox(width: 8),
+        _TotalChip('مصاريف', expenses, Icons.receipt_long_outlined, cs.tertiary),
+        const SizedBox(width: 8),
+        _TotalChip('محفظة', wallet, Icons.account_balance_wallet_outlined, cs.secondary),
+      ],
+    );
+  }
+}
+
+class _TotalChip extends StatelessWidget {
+  final String title;
+  final double value;
+  final IconData icon;
+  final Color color;
+
+  const _TotalChip(this.title, this.value, this.icon, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.black12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 8),
+            Expanded(child: Text(title)),
+            Text(
+              value.toStringAsFixed(2),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PurchaseRow extends StatelessWidget {
+  final PurchaseModel m;
+  const _PurchaseRow(this.m);
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final date = m.timestamp.toLocal().toString().split('.').first;
+    return ListTile(
+      leading: const Icon(Icons.shopping_bag_outlined),
+      title: Text(m.supplier.isEmpty ? '—' : m.supplier),
+      subtitle: Text(
+        'ت: $date${(m.tagNumber ?? '').isNotEmpty ? ' • خاتم: ${m.tagNumber}' : ''}',
+      ),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (closed)
-            Card(
-              color: Colors.red.withValues(alpha:0.08),
-              child: ListTile(
-                leading: const Icon(Icons.lock),
-                title: const Text('اليوم مغلق'),
-                subtitle: Text('الحالة: ${DaySessionController().isOpen ? 'مفتوح' : 'مغلق'}'),
-              ),
-            ),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.today),
-              title: const Text('اليوم'),
-              subtitle: Text(_dayId),
-            ),
-          ),
-          const SizedBox(height: 8),
-          _kpi('رصيد الافتتاح', _openingCash, Icons.account_balance_wallet),
-          _kpi('إجمالي المشتريات ($_purchasesCount)', _purchasesTotal, Icons.shopping_bag),
-          _kpi('إجمالي المصاريف ($_expensesCount)', _expensesTotal, Icons.receipt_long),
-          _kpi('الرصيد النهائي', _balance, Icons.balance),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _loading ? null : () => _saveOnly(context),
-                  icon: const Icon(Icons.download),
-                  label: const Text('حفظ PDF'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _loading ? null : () => _shareOnly(context),
-                  icon: const Icon(Icons.ios_share),
-                  label: const Text('مشاركة PDF'),
-                ),
-              ),
-            ],
-          ),
+          Text('${m.total.toStringAsFixed(2)} دج',
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text('(${m.count} × ${m.price.toStringAsFixed(2)})',
+              style: TextStyle(color: cs.outline, fontSize: 12)),
         ],
       ),
     );
   }
+}
 
-  Widget _kpi(String label, double value, IconData icon) {
-    return Card(
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(label),
-        trailing: Text(value.toStringAsFixed(2)),
+class _ExpenseRow extends StatelessWidget {
+  final ExpenseModel m;
+  const _ExpenseRow(this.m);
+
+  @override
+  Widget build(BuildContext context) {
+    final date = m.timestamp.toLocal().toString().split('.').first;
+    return ListTile(
+      leading: const Icon(Icons.receipt_long_outlined),
+      title: Text(m.kind.isEmpty ? '—' : m.kind),
+      subtitle: Text('ت: $date'),
+      trailing: Text(
+        '${m.amount.toStringAsFixed(2)} دج',
+        style: const TextStyle(fontWeight: FontWeight.w700),
       ),
+    );
+  }
+}
+
+class _Empty extends StatelessWidget {
+  final String message;
+  const _Empty(this.message);
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: Text(message, style: TextStyle(color: cs.outline)),
     );
   }
 }
