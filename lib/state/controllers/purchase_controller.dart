@@ -14,6 +14,11 @@ class PurchaseController {
   List<PurchaseModel> listByDay(String dayId) =>
       _items.where((e) => e.sessionId == dayId).toList()
         ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+// مؤقتًا لتوافق الشاشات القديمة
+  List<PurchaseModel> getByDay(String dayId) => listByDay(dayId);
+  double totalForDay(String dayId) =>
+      listByDay(dayId).fold(0, (s, e) => s + e.total);
+  void restore() {}
 
   /// إضافة شراء للذاكرة (وممكن لاحقًا نضيف Outbox/Audit هنا)
   Future<void> add(PurchaseModel m) async {
