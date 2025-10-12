@@ -22,7 +22,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   String get _todayId => TimeFmt.dayIdToday();
 
-  void _reload() {
+  Future<void> _reload() async {
     _items = _ctrl.listByDay(_todayId);
     setState(() => _loading = false);
   }
@@ -30,7 +30,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   @override
   void initState() {
     super.initState();
-    // ✅ حمّل البيانات قبل العرض
     ExpenseController().load().then((_) => mounted ? _reload() : null);
   }
 
@@ -68,7 +67,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               ],
             ),
             body: RefreshIndicator(
-              onRefresh: () async => _reload(),
+              onRefresh: _reload,
               child: _items.isEmpty
                   ? ListView(
                 children: [
@@ -83,9 +82,77 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               )
                   : ListView.separated(
                 padding: const EdgeInsets.all(12),
-                itemBuilder: (_, i) => _ExpenseTile(_items[i]),
-                separatorBuilder: (_, __) => const Divider(height: 4),
                 itemCount: _items.length,
+                separatorBuilder: (_, __) => const Divider(height: 4),
+                itemBuilder: (_, i) {
+                  final m = _items[i];
+                  return Dismissible(
+                    key: ValueKey('e_${m.id}'),
+                    direction: canWrite
+                        ? DismissDirection.endToStart
+                        : DismissDirection.none,
+                    background: Container(
+                      color: cs.errorContainer,
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Icon(Icons.delete, color: cs.onErrorContainer),
+                    ),
+                    confirmDismiss: (_) async {
+                      if (!canWrite) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Session OFF — الحذف ممنوع'),
+                          ),
+                        );
+                        return false;
+                      }
+                      return await showDialog<bool>(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          title: const Text('حذف مصروف'),
+                          content: const Text('تأكيد حذف هذه العملية؟ سيتم عكس أثرها على المحفظة.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(c, false),
+                              child: const Text('إلغاء'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(c, true),
+                              child: const Text('حذف'),
+                            ),
+                          ],
+                        ),
+                      ) ??
+                          false;
+                    },
+                    onDismissed: (_) async {
+                      await _ctrl.removeById(m.id);
+                      await _reload();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('تم الحذف')),
+                        );
+                      }
+                    },
+                    child: InkWell(
+                      onTap: () async {
+                        if (!canWrite) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Session OFF — التعديل ممنوع')),
+                          );
+                          return;
+                        }
+                        final ok = await Navigator.of(context).push<bool>(
+                          MaterialPageRoute(
+                            builder: (_) => ExpenseAddScreen(edit: m),
+                          ),
+                        );
+                        if (ok == true) _reload();
+                      },
+                      child: _ExpenseTile(m),
+                    ),
+                  );
+                },
               ),
             ),
             floatingActionButton: FloatingActionButton.extended(
@@ -103,7 +170,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   : () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Session OFF — فعّلها من الشاشة الرئيسية'),
+                    content:
+                    Text('Session OFF — فعّلها من الشاشة الرئيسية'),
                   ),
                 );
               },
