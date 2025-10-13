@@ -1,7 +1,7 @@
 ﻿import 'package:admiral_tablet_a/data/models/purchase_model.dart';
 import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
 import 'package:admiral_tablet_a/state/services/kv_store.dart';
-import 'package:admiral_tablet_a/data/models/wallet_movement_model.dart';
+import 'package:admiral_tablet_a/data/models/wallet_movement.dart'; // ← كان wallet_movement_model.dart
 
 class PurchaseController {
   PurchaseController._internal();
@@ -9,13 +9,12 @@ class PurchaseController {
   factory PurchaseController() => _instance;
 
   static const _kStore = 'purchases_store_v1';
-
   final List<PurchaseModel> _items = [];
   bool _loaded = false;
 
   List<PurchaseModel> get items => List.unmodifiable(_items);
 
-  Future<void> load() async {
+  Future load() async {
     if (_loaded) return;
     final list = await KvStore.getList(_kStore);
     _items
@@ -24,21 +23,24 @@ class PurchaseController {
     _loaded = true;
   }
 
-  Future<void> _persist() async {
+  Future _persist() async {
     await KvStore.setList(_kStore, _items.map(_toMap).toList());
   }
 
-  List<PurchaseModel> listByDay(String dayId) =>
-      _items.where((e) => e.sessionId == dayId).toList()
-        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+  List<PurchaseModel> listByDay(String dayId) => _items
+      .where((e) => e.sessionId == dayId)
+      .toList()
+    ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
   // توافق مؤقت
   List<PurchaseModel> getByDay(String d) => listByDay(d);
+
   double totalForDay(String d) => listByDay(d).fold(0, (s, e) => s + e.total);
+
   void restore() {}
 
   // إضافة + خصم من المحفظة + حفظ
-  Future<void> add(PurchaseModel m) async {
+  Future add(PurchaseModel m) async {
     await load();
     _items.add(m);
     await _persist();
@@ -52,7 +54,7 @@ class PurchaseController {
   }
 
   // تحديث + فرق المحفظة + حفظ
-  Future<void> update({
+  Future update({
     required String id,
     required PurchaseModel updated,
   }) async {
@@ -78,7 +80,7 @@ class PurchaseController {
   }
 
   // حذف + عكس أثر المحفظة + حفظ
-  Future<void> removeById(String id) async {
+  Future removeById(String id) async {
     await load();
     final idx = _items.indexWhere((e) => e.id == id);
     if (idx == -1) return;
@@ -106,7 +108,7 @@ class PurchaseController {
     'note': m.note,
   };
 
-  PurchaseModel _fromMap(Map<String, dynamic> m) => PurchaseModel(
+  PurchaseModel _fromMap(Map m) => PurchaseModel(
     id: m['id'] as String,
     sessionId: m['sessionId'] as String,
     supplier: (m['supplier'] as String?) ?? '',
