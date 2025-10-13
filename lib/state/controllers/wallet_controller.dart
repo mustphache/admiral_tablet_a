@@ -1,5 +1,6 @@
+// lib/state/controllers/wallet_controller.dart
 import 'package:uuid/uuid.dart';
-import '../../data/models/wallet_movement.dart'; // ← كان wallet_movement_model.dart
+import '../../data/models/wallet_movement_model.dart';
 import '../services/outbox_service.dart';
 import '../../data/models/outbox_item_model.dart';
 import '../services/kv_store.dart';
@@ -17,7 +18,7 @@ class WalletController {
 
   List<WalletMovementModel> get items => List.unmodifiable(_items);
 
-  Future load() async {
+  Future<void> load() async {
     if (_loaded) return;
     final list = await KvStore.getList(_kStore);
     _items
@@ -26,40 +27,40 @@ class WalletController {
     _loaded = true;
   }
 
-  Future _persist() async {
-    await KvStore.setList(_kStore, _items.map((e) => e.toMap()).toList());
+  Future<void> _persist() async {
+    await KvStore.setList(
+      _kStore,
+      _items.map((e) => e.toMap()).toList(),
+    );
   }
 
-  /// مجموع اليوم باستخدام signedAmount الموحّد
   double totalForDay(String dayId) =>
       _items.where((e) => e.dayId == dayId).fold(0.0, (s, e) => s + e.signedAmount);
 
-  // ----------------- نقطة مركزية + حارس منع التكرار -----------------
-  Future addMovement({
+  Future<WalletMovementModel> addMovement({
     required String dayId,
     required WalletType type,
     required double amount,
     String? note,
   }) async {
     await load();
-
     final now = DateTime.now().toUtc();
-    final amt = amount.abs(); // نخزّن بدون إشارة، التوجيه عبر type فقط
+    final amt = amount.abs();
 
-    // Idempotency: منع تكرار نفس الحركة خلال نافذة قصيرة
     final exists = _items.any((m) =>
     m.dayId == dayId &&
         m.type == type &&
         (m.note ?? '') == (note ?? '') &&
-        _eqD(m.amount, amt) &&
-        _isClose(m.createdAt, now));
+        (m.amount - amt).abs() < 0.000001 &&
+        ((m.createdAt.isBefore(now) ? now.difference(m.createdAt) : m.createdAt.difference(now))
+            < const Duration(seconds: 2)));
+
     if (exists) {
       return _items.lastWhere((m) =>
       m.dayId == dayId &&
           m.type == type &&
           (m.note ?? '') == (note ?? '') &&
-          _eqD(m.amount, amt) &&
-          _isClose(m.createdAt, now));
+          (m.amount - amt).abs() < 0.000001);
     }
 
     final m = WalletMovementModel(
@@ -82,12 +83,10 @@ class WalletController {
         createdAt: now,
       ),
     );
-
     return m;
   }
 
-  // واجهات مختصرة موحّدة (الإشارة تُحدّد عبر النوع)
-  Future addCredit({
+  Future<WalletMovementModel> addCredit({
     required String dayId,
     required double amount,
     String? note,
@@ -100,7 +99,7 @@ class WalletController {
     );
   }
 
-  Future addRefund({
+  Future<WalletMovementModel> addRefund({
     required String dayId,
     required double amount,
     String? note,
@@ -113,7 +112,7 @@ class WalletController {
     );
   }
 
-  Future addSpendPurchase({
+  Future<WalletMovementModel> addSpendPurchase({
     required String dayId,
     required double amount,
     String? note,
@@ -126,7 +125,7 @@ class WalletController {
     );
   }
 
-  Future addSpendExpense({
+  Future<WalletMovementModel> addSpendExpense({
     required String dayId,
     required double amount,
     String? note,
@@ -138,10 +137,4 @@ class WalletController {
       note: note ?? 'Expense spend',
     );
   }
-
-  // ----------------- أدوات مساعدة للحارس -----------------
-  bool _isClose(DateTime a, DateTime b) =>
-      (a.isBefore(b) ? b.difference(a) : a.difference(b)) < const Duration(seconds: 2);
-
-  bool _eqD(double a, double b) => (a - b).abs() < 0.000001;
 }
