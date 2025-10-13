@@ -1,11 +1,11 @@
 import 'dart:convert';
 
-/// يمثل حالة جلسة اليوم (مفتوحة/مغلقة) مع معلوماتها الأساسية.
+/// الحالة المتوقعة في بقية المشروع (dayId/createdAt/openedAt/closedAt)
 class DaySessionState {
-  final String dayId;           // بصيغة YYYY-MM-DD مثلاً
-  final DateTime createdAt;     // وقت إنشاء الجلسة في الجهاز
-  final DateTime openedAt;      // وقت الفتح
-  final DateTime? closedAt;     // null إذا مازالت مفتوحة
+  final String dayId;
+  final DateTime createdAt;
+  final DateTime openedAt;
+  final DateTime? closedAt;
 
   const DaySessionState({
     required this.dayId,
@@ -14,17 +14,8 @@ class DaySessionState {
     this.closedAt,
   });
 
-  /// هل الجلسة مفتوحة؟
   bool get isOpen => closedAt == null;
-
-  /// هل الجلسة مغلقة؟
-  bool get isClosed => closedAt != null;
-
-  /// حفاظًا على التوافق مع كود يستدعيها كـ closed()
-  bool closed() => isClosed;
-
-  /// حفاظًا على التوافق مع كود يستدعيها كـ openedNow()
-  bool openedNow() => isOpen;
+  bool get isClosed => !isOpen;
 
   DaySessionState copyWith({
     String? dayId,
@@ -47,19 +38,14 @@ class DaySessionState {
     'closedAt': closedAt?.toIso8601String(),
   };
 
-  factory DaySessionState.fromMap(Map<String, dynamic> map) {
-    return DaySessionState(
-      dayId: map['dayId'] as String,
-      createdAt: DateTime.parse(map['createdAt'] as String),
-      openedAt: DateTime.parse(map['openedAt'] as String),
-      closedAt:
-      map['closedAt'] == null ? null : DateTime.parse(map['closedAt'] as String),
-    );
-  }
+  factory DaySessionState.fromMap(Map<String, dynamic> m) => DaySessionState(
+    dayId: m['dayId'] as String,
+    createdAt: DateTime.parse(m['createdAt'] as String),
+    openedAt: DateTime.parse(m['openedAt'] as String),
+    closedAt: m['closedAt'] == null ? null : DateTime.parse(m['closedAt'] as String),
+  );
 
   String toJson() => jsonEncode(toMap());
-
-  /// حفاظًا على التوافق مع كود يستدعي DaySessionState.fromJson(...)
-  static DaySessionState fromJson(String source) =>
-      DaySessionState.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  static DaySessionState fromJson(String s) =>
+      DaySessionState.fromMap(jsonDecode(s) as Map<String, dynamic>);
 }
