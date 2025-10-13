@@ -1,7 +1,7 @@
+// lib/core/session/day_session_gate.dart
 import 'package:flutter/widgets.dart';
 import 'day_session_store.dart';
 
-/// أداة مساعدة للتمرير السريع: تسمح بقرارات UI حسب حالة الجلسة.
 class DaySessionGate extends InheritedWidget {
   final DaySessionStore store;
 
