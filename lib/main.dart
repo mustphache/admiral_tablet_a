@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-
+import 'package:provider/provider.dart';
+import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
 import 'package:admiral_tablet_a/l10n/generated/app_localizations.dart';
 import 'package:admiral_tablet_a/ui/theme/app_theme.dart';
 import 'package:admiral_tablet_a/ui/theme/theme_controller.dart';
