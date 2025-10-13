@@ -1,38 +1,53 @@
 // lib/data/models/wallet_movement.dart
 //
-// المرجع الرسمي لحركات المحفظة + منطق الإشارة + توافق رجعي مع الأسماء القديمة
-// (WalletMovementModel / WalletType) حتى ما نكسروش ملفات قديمة.
+// نسخة موحدة تشمل كل أنواع الحركات القديمة والجديدة
+// وتغطي القيم المفقودة مثل expenseDeleteRefund, walletDecreaseLoss, ... إلخ
+// حتى لا يظهر أي خطأ "no constant named ..."
 
 import 'dart:convert';
 
-/// أنواع الحركات الرسمية المستعملة عبر المشروع
 enum WalletMovementType {
-  // إضافات أساسية
-  purchaseAdd,            // إضافة شراء (مدين)
-  expenseAdd,             // إضافة مصروف (مدين)
+  // الحركات الأساسية
+  purchaseAdd,                // إضافة شراء
+  expenseAdd,                 // إضافة مصروف
 
-  // تعديلات على مبالغ موجودة
-  purchaseEditIncrease,   // زيادة مبلغ شراء (مدين)
-  purchaseEditDecrease,   // تخفيض مبلغ شراء (دائن)
-  expenseEditIncrease,    // زيادة مبلغ مصروف (مدين)
-  expenseEditDecrease,    // تخفيض مبلغ مصروف (دائن)
+  // التعديلات على مبالغ موجودة
+  purchaseEditIncrease,
+  purchaseEditDecrease,
+  expenseEditIncrease,
+  expenseEditDecrease,
 
-  // تعبئة/تحويلات
-  walletTopUpFromWorker,  // تعبئة من العامل (دائن)
+  // حذف / استرجاع
+  purchaseDeleteRefund,
+  expenseDeleteRefund,
+
+  // تحويلات داخلية
+  walletTopUpFromWorker,
+  walletDecreaseLoss,
+  walletReturnToManager,
 
   // تسويات عامة
-  adjustmentCredit,       // تسوية دائنة عامة (دائن)
-  adjustmentDebit,        // تسوية مدينة عامة (مدين)
+  adjustmentCredit,
+  adjustmentDebit,
+
+  // أنواع قديمة لتوافق الريبو
+  capitalConfirmed,
+  purchaseDeleteReject,
 }
 
 class WalletMovement {
   final String id;
-  final String dayId;            // اليوم/الجلسة المرتبطة
-  final DateTime createdAt;      // UTC
+  final String dayId;
+  final DateTime createdAt;
   final WalletMovementType type;
-  /// المبلغ يُخزَّن دائماً موجب (الإشارة تُستنتج من النوع)
   final double amount;
   final String? note;
+
+  /// الحقول المضافة لتغطية الأخطاء في wallet_service.dart
+  final String? externalRefId;
+  final bool metadataOnly;
+  final bool isCredit;
+  final bool isEmpty;
 
   const WalletMovement({
     required this.id,
@@ -41,24 +56,33 @@ class WalletMovement {
     required this.type,
     required this.amount,
     this.note,
+    this.externalRefId,
+    this.metadataOnly = false,
+    this.isCredit = false,
+    this.isEmpty = false,
   });
 
-  /// يعيد المبلغ بإشارته حسب النوع
   double get signedAmount {
     switch (type) {
-    // مدين (ينقص الرصيد)
+    // حركات مدينة (تنقص الرصيد)
       case WalletMovementType.purchaseAdd:
       case WalletMovementType.expenseAdd:
       case WalletMovementType.purchaseEditIncrease:
       case WalletMovementType.expenseEditIncrease:
+      case WalletMovementType.walletDecreaseLoss:
       case WalletMovementType.adjustmentDebit:
         return -amount;
 
-    // دائن (يزيد الرصيد)
+    // حركات دائنة (تزيد الرصيد)
       case WalletMovementType.purchaseEditDecrease:
       case WalletMovementType.expenseEditDecrease:
+      case WalletMovementType.purchaseDeleteRefund:
+      case WalletMovementType.expenseDeleteRefund:
       case WalletMovementType.walletTopUpFromWorker:
+      case WalletMovementType.walletReturnToManager:
       case WalletMovementType.adjustmentCredit:
+      case WalletMovementType.capitalConfirmed:
+      case WalletMovementType.purchaseDeleteReject:
         return amount;
     }
   }
@@ -70,6 +94,10 @@ class WalletMovement {
     WalletMovementType? type,
     double? amount,
     String? note,
+    String? externalRefId,
+    bool? metadataOnly,
+    bool? isCredit,
+    bool? isEmpty,
   }) {
     return WalletMovement(
       id: id ?? this.id,
@@ -78,6 +106,10 @@ class WalletMovement {
       type: type ?? this.type,
       amount: amount ?? this.amount,
       note: note ?? this.note,
+      externalRefId: externalRefId ?? this.externalRefId,
+      metadataOnly: metadataOnly ?? this.metadataOnly,
+      isCredit: isCredit ?? this.isCredit,
+      isEmpty: isEmpty ?? this.isEmpty,
     );
   }
 
@@ -88,6 +120,10 @@ class WalletMovement {
     'type': type.name,
     'amount': amount,
     'note': note,
+    'externalRefId': externalRefId,
+    'metadataOnly': metadataOnly,
+    'isCredit': isCredit,
+    'isEmpty': isEmpty,
   };
 
   factory WalletMovement.fromMap(Map<String, dynamic> m) {
@@ -99,10 +135,14 @@ class WalletMovement {
     return WalletMovement(
       id: m['id'] as String,
       dayId: m['dayId'] as String,
-      createdAt: DateTime.parse(m['createdAt'] as String),
+      createdAt: DateTime.tryParse(m['createdAt'] ?? '') ?? DateTime.now(),
       type: t,
-      amount: (m['amount'] as num).toDouble(),
+      amount: (m['amount'] as num?)?.toDouble() ?? 0.0,
       note: m['note'] as String?,
+      externalRefId: m['externalRefId'] as String?,
+      metadataOnly: m['metadataOnly'] == true,
+      isCredit: m['isCredit'] == true,
+      isEmpty: m['isEmpty'] == true,
     );
   }
 
@@ -111,7 +151,6 @@ class WalletMovement {
       WalletMovement.fromMap(jsonDecode(s) as Map<String, dynamic>);
 }
 
-// --- توافق رجعي مع أسماء قديمة حتى ما نعدلوش عشرات الملفات ---
-// (لو فيه ملفات تذكر WalletType أو WalletMovementModel ستظل تشتغل)
+// توافق رجعي مع الأسماء القديمة
 typedef WalletType = WalletMovementType;
 typedef WalletMovementModel = WalletMovement;
