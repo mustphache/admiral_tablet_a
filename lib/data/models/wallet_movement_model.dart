@@ -1,74 +1,65 @@
 // lib/data/models/wallet_movement_model.dart
-// Shim للتوافق مع الكود القديم (لا تلمس بقية الملفات)
+// نموذج حركة المحفظة + توحيد الإشارة عبر signedAmount
 
 enum WalletType {
-  purchase,   // مدين
-  expense,    // مدين
-  refund,     // دائن
-  credit,     // دائن (top-up عام)
-  topUpFromWorker, // دائن
-  loss,       // مدين
-  returnToManager, // مدين
-  adjustmentPlus,  // دائن
-  adjustmentMinus, // مدين
+  credit,  // رصيد وارد (زيادة)
+  refund,  // استرجاع (زيادة)
+  purchase, // شراء (نقصان)
+  expense,  // مصروف (نقصان)
 }
 
 class WalletMovementModel {
   final String id;
-  final String dayId;
-  final DateTime createdAt;
+  final String dayId; // YYYY-MM-DD
   final WalletType type;
-  final double amount; // موجّبة دائمًا
+  final double amount; // نخزّن دائمًا القيمة بالمطلق (بدون إشارة)
   final String? note;
+  final DateTime createdAt; // UTC
 
   WalletMovementModel({
     required this.id,
     required this.dayId,
-    required this.createdAt,
     required this.type,
     required this.amount,
     this.note,
+    required this.createdAt,
   });
 
-  /// نفس منطق الإشارة المستعمل في الشاشات الحالية
+  /// الإشارة الموحّدة للعرض والحساب:
+  /// credit/refund => +amount | purchase/expense => -amount
   double get signedAmount {
     switch (type) {
+      case WalletType.credit:
+      case WalletType.refund:
+        return amount.abs();
       case WalletType.purchase:
       case WalletType.expense:
-      case WalletType.loss:
-      case WalletType.returnToManager:
-      case WalletType.adjustmentMinus:
-        return -amount;
-      case WalletType.refund:
-      case WalletType.credit:
-      case WalletType.topUpFromWorker:
-      case WalletType.adjustmentPlus:
-        return amount;
+        return -amount.abs();
     }
   }
 
   Map<String, dynamic> toMap() => {
     'id': id,
     'dayId': dayId,
-    'createdAt': createdAt.toIso8601String(),
     'type': type.name,
     'amount': amount,
     'note': note,
+    'createdAt': createdAt.toIso8601String(),
   };
 
-  factory WalletMovementModel.fromMap(Map m) {
-    final tName = (m['type'] as String);
+  static WalletMovementModel fromMap(Map<String, dynamic> map) {
     final t = WalletType.values.firstWhere(
-          (e) => e.name == tName,
-      orElse: () => WalletType.purchase,
+          (e) => e.name == map['type'],
+      orElse: () => WalletType.credit,
     );
+
     return WalletMovementModel(
-      id: m['id'] as String,
-      dayId: m['dayId'] as String,
-      createdAt: DateTime.parse(m['createdAt'] as String),
+      id: map['id'] as String,
+      dayId: map['dayId'] as String,
       type: t,
-      amount: (m['amount'] as num).toDouble(),
-      note: m['note'] as String?,
+      amount: (map['amount'] as num).toDouble(),
+      note: map['note'] as String?,
+      createdAt: DateTime.parse(map['createdAt'] as String),
     );
   }
 }
