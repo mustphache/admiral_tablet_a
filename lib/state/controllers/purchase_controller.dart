@@ -1,122 +1,94 @@
-﻿import 'package:admiral_tablet_a/data/models/purchase_model.dart';
-import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
-import 'package:admiral_tablet_a/state/services/kv_store.dart';
-import 'package:admiral_tablet_a/data/models/wallet_movement.dart'; // ← كان wallet_movement_model.dart
+﻿// lib/state/controllers/purchase_controller.dart
+//
+// نسخة نظيفة مع إصلاح منطق فرق الرصيد أثناء التعديل
+// تربط بالقيم الرسمية في WalletMovementType
+
+import 'dart:async';
+import 'package:uuid/uuid.dart';
+
+import '../../data/models/purchase_model.dart';
+import '../../data/models/wallet_movement.dart';
+import 'wallet_controller.dart';
 
 class PurchaseController {
   PurchaseController._internal();
   static final PurchaseController _instance = PurchaseController._internal();
   factory PurchaseController() => _instance;
 
-  static const _kStore = 'purchases_store_v1';
+  final _uuid = const Uuid();
   final List<PurchaseModel> _items = [];
   bool _loaded = false;
 
   List<PurchaseModel> get items => List.unmodifiable(_items);
 
-  Future load() async {
+  Future<void> load() async {
     if (_loaded) return;
-    final list = await KvStore.getList(_kStore);
-    _items
-      ..clear()
-      ..addAll(list.map(_fromMap));
+    // TODO: حمّل من التخزين المحلي إن وجد
     _loaded = true;
   }
 
-  Future _persist() async {
-    await KvStore.setList(_kStore, _items.map(_toMap).toList());
-  }
-
-  List<PurchaseModel> listByDay(String dayId) => _items
-      .where((e) => e.sessionId == dayId)
-      .toList()
-    ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-  // توافق مؤقت
-  List<PurchaseModel> getByDay(String d) => listByDay(d);
-
-  double totalForDay(String d) => listByDay(d).fold(0, (s, e) => s + e.total);
-
-  void restore() {}
-
-  // إضافة + خصم من المحفظة + حفظ
-  Future add(PurchaseModel m) async {
+  Future<PurchaseModel> add(PurchaseModel p) async {
     await load();
-    _items.add(m);
-    await _persist();
+    final now = DateTime.now().toUtc();
+    final created = p.copyWith(id: p.id.isEmpty ? _uuid.v4() : p.id, createdAt: now);
+    _items.add(created);
 
-    // أثر محفظة: خصم كامل قيمة الشراء
-    await WalletController().addSpendPurchase(
-      dayId: m.sessionId,
-      amount: m.total,
-      note: 'Purchase #${m.id}',
+    // إضافة شراء = مدين
+    await WalletController().addMovement(
+      dayId: created.sessionId,
+      type: WalletMovementType.purchaseAdd,
+      amount: created.total.abs(),
+      note: 'Purchase add (${created.id})',
     );
+
+    return created;
   }
 
-  // تحديث + فرق المحفظة + حفظ
-  Future update({
-    required String id,
-    required PurchaseModel updated,
-  }) async {
+  Future<PurchaseModel?> update(PurchaseModel updated) async {
     await load();
-    final idx = _items.indexWhere((e) => e.id == id);
-    if (idx == -1) return;
+    final idx = _items.indexWhere((x) => x.id == updated.id);
+    if (idx == -1) return null;
 
     final old = _items[idx];
     _items[idx] = updated;
-    await _persist();
 
     // فرق محفظة: الزيادة تخصم، النقصان يُعاد للمحفظة
-    final delta = updated.total - old.total;
+    final delta = (updated.total - old.total);
     if (delta != 0) {
-      // delta>0 => خصم إضافي، delta<0 => إرجاع
-      await WalletController().addMovement(
-        dayId: updated.sessionId,
-        type: WalletType.purchase,
-        amount: -delta, // عكس الإشارة: زيادة الإنفاق = -delta
-        note: 'Purchase edit delta (${updated.id})',
-      );
+      if (delta > 0) {
+        // زيادة شراء = حركة مدينة
+        await WalletController().addMovement(
+          dayId: updated.sessionId,
+          type: WalletMovementType.purchaseEditIncrease,
+          amount: delta,
+          note: 'Purchase edit delta (${updated.id})',
+        );
+      } else {
+        // تخفيض شراء = حركة دائنة
+        await WalletController().addMovement(
+          dayId: updated.sessionId,
+          type: WalletMovementType.purchaseEditDecrease,
+          amount: -delta, // موجب
+          note: 'Purchase edit delta (${updated.id})',
+        );
+      }
     }
+
+    return updated;
   }
 
-  // حذف + عكس أثر المحفظة + حفظ
-  Future removeById(String id) async {
+  Future<void> removeById(String id) async {
     await load();
     final idx = _items.indexWhere((e) => e.id == id);
     if (idx == -1) return;
+    final removed = _items.removeAt(idx);
 
-    final m = _items.removeAt(idx);
-    await _persist();
-
-    // عكس الأثر: إعادة كامل قيمة الشراء للمحفظة
-    await WalletController().addRefund(
-      dayId: m.sessionId,
-      amount: m.total,
-      note: 'Purchase deleted (${m.id})',
+    // حذف شراء: نعيد المبلغ للمحفظة كتسوية دائنة
+    await WalletController().addMovement(
+      dayId: removed.sessionId,
+      type: WalletMovementType.adjustmentCredit,
+      amount: removed.total.abs(),
+      note: 'Purchase remove (${removed.id})',
     );
   }
-
-  Map<String, dynamic> _toMap(PurchaseModel m) => {
-    'id': m.id,
-    'sessionId': m.sessionId,
-    'supplier': m.supplier,
-    'tagNumber': m.tagNumber,
-    'price': m.price,
-    'count': m.count,
-    'total': m.total,
-    'timestamp': m.timestamp.toIso8601String(),
-    'note': m.note,
-  };
-
-  PurchaseModel _fromMap(Map m) => PurchaseModel(
-    id: m['id'] as String,
-    sessionId: m['sessionId'] as String,
-    supplier: (m['supplier'] as String?) ?? '',
-    tagNumber: (m['tagNumber'] as String?) ?? '',
-    price: (m['price'] as num).toDouble(),
-    count: (m['count'] as num).toInt(),
-    total: (m['total'] as num).toDouble(),
-    timestamp: DateTime.parse(m['timestamp'] as String),
-    note: m['note'] as String?,
-  );
 }
