@@ -1,9 +1,4 @@
-﻿// lib/state/controllers/purchase_controller.dart
-//
-// نسخة نظيفة مع إصلاح منطق فرق الرصيد أثناء التعديل
-// تربط بالقيم الرسمية في WalletMovementType
-
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:uuid/uuid.dart';
 
 import '../../data/models/purchase_model.dart';
@@ -23,28 +18,34 @@ class PurchaseController {
 
   Future<void> load() async {
     if (_loaded) return;
-    // TODO: حمّل من التخزين المحلي إن وجد
+    // TODO: تحميل من التخزين عندك
     _loaded = true;
   }
 
+  List<PurchaseModel> listByDay(String dayId) =>
+      _items.where((p) => p.sessionId == dayId).toList();
+
+  List<PurchaseModel> getByDay(String dayId) => listByDay(dayId);
+
+  double totalForDay(String dayId) =>
+      listByDay(dayId).fold(0.0, (s, p) => s + (p.total));
+
   Future<PurchaseModel> add(PurchaseModel p) async {
     await load();
-    final now = DateTime.now().toUtc();
-    final created = p.copyWith(id: p.id.isEmpty ? _uuid.v4() : p.id, createdAt: now);
+    final created = p.copyWith(id: p.id.isEmpty ? _uuid.v4() : p.id);
     _items.add(created);
 
-    // إضافة شراء = مدين
     await WalletController().addMovement(
       dayId: created.sessionId,
       type: WalletMovementType.purchaseAdd,
       amount: created.total.abs(),
       note: 'Purchase add (${created.id})',
     );
-
     return created;
   }
 
-  Future<PurchaseModel?> update(PurchaseModel updated) async {
+  // التوقيع المطلوب: update(updated: ...)
+  Future<PurchaseModel?> update({required PurchaseModel updated}) async {
     await load();
     final idx = _items.indexWhere((x) => x.id == updated.id);
     if (idx == -1) return null;
@@ -52,11 +53,9 @@ class PurchaseController {
     final old = _items[idx];
     _items[idx] = updated;
 
-    // فرق محفظة: الزيادة تخصم، النقصان يُعاد للمحفظة
     final delta = (updated.total - old.total);
     if (delta != 0) {
       if (delta > 0) {
-        // زيادة شراء = حركة مدينة
         await WalletController().addMovement(
           dayId: updated.sessionId,
           type: WalletMovementType.purchaseEditIncrease,
@@ -64,16 +63,14 @@ class PurchaseController {
           note: 'Purchase edit delta (${updated.id})',
         );
       } else {
-        // تخفيض شراء = حركة دائنة
         await WalletController().addMovement(
           dayId: updated.sessionId,
           type: WalletMovementType.purchaseEditDecrease,
-          amount: -delta, // موجب
+          amount: -delta,
           note: 'Purchase edit delta (${updated.id})',
         );
       }
     }
-
     return updated;
   }
 
@@ -83,10 +80,9 @@ class PurchaseController {
     if (idx == -1) return;
     final removed = _items.removeAt(idx);
 
-    // حذف شراء: نعيد المبلغ للمحفظة كتسوية دائنة
     await WalletController().addMovement(
       dayId: removed.sessionId,
-      type: WalletMovementType.adjustmentCredit,
+      type: WalletMovementType.purchaseDeleteRefund,
       amount: removed.total.abs(),
       note: 'Purchase remove (${removed.id})',
     );
