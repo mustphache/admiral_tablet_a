@@ -1,49 +1,47 @@
 // lib/data/models/wallet_movement.dart
 //
-// نسخة موحدة تشمل كل أنواع الحركات القديمة والجديدة
-// وتغطي القيم المفقودة مثل expenseDeleteRefund, walletDecreaseLoss, ... إلخ
-// حتى لا يظهر أي خطأ "no constant named ..."
+// مرجع موحّد يغطي كل القيم التي تستعملها الكنترولرات والخدمات
+// + توافق رجعي عبر typedefs مع الأسماء القديمة.
 
 import 'dart:convert';
 
 enum WalletMovementType {
-  // الحركات الأساسية
-  purchaseAdd,                // إضافة شراء
-  expenseAdd,                 // إضافة مصروف
+  // إضافات أساسية
+  purchaseAdd,
+  expenseAdd,
 
-  // التعديلات على مبالغ موجودة
+  // تعديلات على مبالغ موجودة
   purchaseEditIncrease,
   purchaseEditDecrease,
   expenseEditIncrease,
   expenseEditDecrease,
 
-  // حذف / استرجاع
+  // حذف/استرجاع
   purchaseDeleteRefund,
   expenseDeleteRefund,
+  purchaseDeleteReject,    // متروك للتوافق
 
   // تحويلات داخلية
   walletTopUpFromWorker,
   walletDecreaseLoss,
   walletReturnToManager,
 
-  // تسويات عامة
+  // تسويات/توثيق
   adjustmentCredit,
   adjustmentDebit,
-
-  // أنواع قديمة لتوافق الريبو
-  capitalConfirmed,
-  purchaseDeleteReject,
+  capitalConfirmed,        // متروك للتوافق
 }
 
 class WalletMovement {
   final String id;
   final String dayId;
-  final DateTime createdAt;
+  final DateTime createdAt;     // UTC
   final WalletMovementType type;
+  /// يُخزَّن دائمًا موجب؛ الإشارة تُستنتج من النوع.
   final double amount;
   final String? note;
 
-  /// الحقول المضافة لتغطية الأخطاء في wallet_service.dart
+  // حقول إضافية لتوافق الخدمات
   final String? externalRefId;
   final bool metadataOnly;
   final bool isCredit;
@@ -64,7 +62,7 @@ class WalletMovement {
 
   double get signedAmount {
     switch (type) {
-    // حركات مدينة (تنقص الرصيد)
+    // مدينة (تنقص الرصيد)
       case WalletMovementType.purchaseAdd:
       case WalletMovementType.expenseAdd:
       case WalletMovementType.purchaseEditIncrease:
@@ -73,7 +71,7 @@ class WalletMovement {
       case WalletMovementType.adjustmentDebit:
         return -amount;
 
-    // حركات دائنة (تزيد الرصيد)
+    // دائنة (تزيد الرصيد)
       case WalletMovementType.purchaseEditDecrease:
       case WalletMovementType.expenseEditDecrease:
       case WalletMovementType.purchaseDeleteRefund:
@@ -135,7 +133,7 @@ class WalletMovement {
     return WalletMovement(
       id: m['id'] as String,
       dayId: m['dayId'] as String,
-      createdAt: DateTime.tryParse(m['createdAt'] ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(m['createdAt'] ?? '') ?? DateTime.now().toUtc(),
       type: t,
       amount: (m['amount'] as num?)?.toDouble() ?? 0.0,
       note: m['note'] as String?,
@@ -151,6 +149,7 @@ class WalletMovement {
       WalletMovement.fromMap(jsonDecode(s) as Map<String, dynamic>);
 }
 
-// توافق رجعي مع الأسماء القديمة
+// ——— توافق رجعي ———
+// أي ملف قديم يذكر WalletType/WalletMovementModel سيشتغل
 typedef WalletType = WalletMovementType;
 typedef WalletMovementModel = WalletMovement;
