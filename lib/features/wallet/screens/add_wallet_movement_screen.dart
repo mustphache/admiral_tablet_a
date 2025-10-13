@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
-import 'package:admiral_tablet_a/data/models/wallet_movement_model.dart';
+import 'package:admiral_tablet_a/data/models/wallet_movement.dart';
 import 'package:admiral_tablet_a/data/models/wallet_quick_kind.dart';
 
 class AddWalletMovementScreen extends StatefulWidget {
