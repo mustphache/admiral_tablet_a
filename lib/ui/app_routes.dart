@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:admiral_tablet_a/features/wallet/screens/wallet_movements_screen.dart';
+import 'package:admiral_tablet_a/features/wallet/screens/add_wallet_movement_screen.dart';
 
 // الشاشات
 import 'package:admiral_tablet_a/features/auth/screens/login_screen.dart';
