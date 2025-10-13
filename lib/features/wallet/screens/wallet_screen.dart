@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
-import 'package:admiral_tablet_a/data/models/wallet_movement.dart';
+
 
 class WalletScreen extends StatelessWidget {
   const WalletScreen({super.key});
