@@ -1,59 +1,115 @@
+import 'dart:convert';
+
+/// أنواع الحركات في المحفظة.
 enum WalletType {
-  credit,
-  refund,
-  purchase,
-  expense,
+  deposit,   // إيداع
+  withdraw,  // سحب
+  refund,    // استرجاع (مثلاً من A عند غلق اليوم)
+  adjust,    // تسوية/تصحيح
 }
 
+WalletType walletTypeFromString(String s) {
+  switch (s) {
+    case 'deposit':
+      return WalletType.deposit;
+    case 'withdraw':
+      return WalletType.withdraw;
+    case 'refund':
+      return WalletType.refund;
+    case 'adjust':
+      return WalletType.adjust;
+    default:
+      return WalletType.adjust;
+  }
+}
+
+String walletTypeToString(WalletType t) {
+  switch (t) {
+    case WalletType.deposit:
+      return 'deposit';
+    case WalletType.withdraw:
+      return 'withdraw';
+    case WalletType.refund:
+      return 'refund';
+    case WalletType.adjust:
+      return 'adjust';
+  }
+}
+
+/// نموذج حركة المحفظة.
 class WalletMovementModel {
-  final String id;
-  final String dayId; // YYYY-MM-DD
-  final WalletType type;
-  final double amount;
-  final String? note;
+  final String id;            // UUID أو أي مُعرّف
+  final String? dayId;        // قد تكون الحركة عامة بلا ارتباط بيوم
   final DateTime createdAt;
+  final WalletType type;
+  final double amount;        // قيمة موجبة دائمًا
 
-  WalletMovementModel({
-    required this.id,
-    required this.dayId,
-    required this.type,
-    required this.amount,
-    this.note,
-    required this.createdAt,
-  });
-
+  /// قيمة موقّعة تُستعمل في الحسابات:
+  /// deposit/refund => +amount
+  /// withdraw       => -amount
+  /// adjust         => قد تعتمد على السياسة؛ هنا نفترض +amount
   double get signedAmount {
     switch (type) {
-      case WalletType.credit:
+      case WalletType.deposit:
       case WalletType.refund:
         return amount.abs();
-      case WalletType.purchase:
-      case WalletType.expense:
+      case WalletType.withdraw:
         return -amount.abs();
+      case WalletType.adjust:
+        return amount; // اتركها كما هي
     }
+  }
+
+  final String? note;
+
+  const WalletMovementModel({
+    required this.id,
+    required this.createdAt,
+    required this.type,
+    required this.amount,
+    this.dayId,
+    this.note,
+  });
+
+  WalletMovementModel copyWith({
+    String? id,
+    String? dayId,
+    DateTime? createdAt,
+    WalletType? type,
+    double? amount,
+    String? note,
+  }) {
+    return WalletMovementModel(
+      id: id ?? this.id,
+      createdAt: createdAt ?? this.createdAt,
+      type: type ?? this.type,
+      amount: amount ?? this.amount,
+      dayId: dayId ?? this.dayId,
+      note: note ?? this.note,
+    );
   }
 
   Map<String, dynamic> toMap() => {
     'id': id,
     'dayId': dayId,
-    'type': type.name,
+    'createdAt': createdAt.toIso8601String(),
+    'type': walletTypeToString(type),
     'amount': amount,
     'note': note,
-    'createdAt': createdAt.toIso8601String(),
   };
 
-  static WalletMovementModel fromMap(Map<String, dynamic> map) {
-    final t = WalletType.values.firstWhere(
-          (e) => e.name == map['type'],
-      orElse: () => WalletType.credit,
-    );
+  factory WalletMovementModel.fromMap(Map<String, dynamic> map) {
     return WalletMovementModel(
       id: map['id'] as String,
-      dayId: map['dayId'] as String,
-      type: t,
+      dayId: map['dayId'] as String?,
+      createdAt: DateTime.parse(map['createdAt'] as String),
+      type: walletTypeFromString(map['type'] as String),
       amount: (map['amount'] as num).toDouble(),
       note: map['note'] as String?,
-      createdAt: DateTime.parse(map['createdAt'] as String),
     );
   }
+
+  String toJson() => jsonEncode(toMap());
+  static WalletMovementModel fromJson(String source) =>
+      WalletMovementModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
