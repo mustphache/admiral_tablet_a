@@ -1,62 +1,38 @@
 // lib/data/models/wallet_movement.dart
+//
+// المرجع الرسمي لحركات المحفظة + منطق الإشارة + توافق رجعي مع الأسماء القديمة
+// (WalletMovementModel / WalletType) حتى ما نكسروش ملفات قديمة.
 
+import 'dart:convert';
+
+/// أنواع الحركات الرسمية المستعملة عبر المشروع
 enum WalletMovementType {
-  // رأس المال المؤكَّد (دائن نهائيًا)
-  capitalConfirmed,
+  // إضافات أساسية
+  purchaseAdd,            // إضافة شراء (مدين)
+  expenseAdd,             // إضافة مصروف (مدين)
 
-  // المشتريات
-  purchaseAdd,            // مدين
-  purchaseEditIncrease,   // مدين (Delta>0)
-  purchaseEditDecrease,   // دائن (Delta<0)
-  purchaseDeleteRefund,   // دائن (إرجاع آخر قيمة)
+  // تعديلات على مبالغ موجودة
+  purchaseEditIncrease,   // زيادة مبلغ شراء (مدين)
+  purchaseEditDecrease,   // تخفيض مبلغ شراء (دائن)
+  expenseEditIncrease,    // زيادة مبلغ مصروف (مدين)
+  expenseEditDecrease,    // تخفيض مبلغ مصروف (دائن)
 
-  // المصروفات
-  expenseAdd,             // مدين
-  expenseEditIncrease,    // مدين
-  expenseEditDecrease,    // دائن
-  expenseDeleteRefund,    // دائن
+  // تعبئة/تحويلات
+  walletTopUpFromWorker,  // تعبئة من العامل (دائن)
 
-  // عمليات من داخل المحفظة
-  walletTopUpFromWorker,  // دائن (إضافة رصيد من جيب العامل)
-  walletDecreaseLoss,     // مدين (ضياع/سرقة)
-  walletReturnToManager,  // مدين (إعادة رصيد للمانجر)
-
-  // احتياطي
-  transferIn,             // دائن
-  transferOut,            // مدين
-  adjustmentCredit,       // دائن
-  adjustmentDebit,        // مدين
-}
-
-extension WalletMovementTypeX on WalletMovementType {
-  bool get isCredit {
-    switch (this) {
-      case WalletMovementType.capitalConfirmed:
-      case WalletMovementType.purchaseEditDecrease:
-      case WalletMovementType.purchaseDeleteRefund:
-      case WalletMovementType.expenseEditDecrease:
-      case WalletMovementType.expenseDeleteRefund:
-      case WalletMovementType.walletTopUpFromWorker:
-      case WalletMovementType.transferIn:
-      case WalletMovementType.adjustmentCredit:
-        return true;
-      default:
-        return false;
-    }
-  }
-
-  bool get isDebit => !isCredit;
+  // تسويات عامة
+  adjustmentCredit,       // تسوية دائنة عامة (دائن)
+  adjustmentDebit,        // تسوية مدينة عامة (مدين)
 }
 
 class WalletMovement {
   final String id;
-  final String dayId;
-  final DateTime createdAt;
+  final String dayId;            // اليوم/الجلسة المرتبطة
+  final DateTime createdAt;      // UTC
   final WalletMovementType type;
-  final double amount;         // موجّبة دائمًا
+  /// المبلغ يُخزَّن دائماً موجب (الإشارة تُستنتج من النوع)
+  final double amount;
   final String? note;
-  final String? externalRefId;
-  final bool metadataOnly;
 
   const WalletMovement({
     required this.id,
@@ -65,11 +41,45 @@ class WalletMovement {
     required this.type,
     required this.amount,
     this.note,
-    this.externalRefId,
-    this.metadataOnly = false,
   });
 
-  double get signedAmount => type.isCredit ? amount : -amount;
+  /// يعيد المبلغ بإشارته حسب النوع
+  double get signedAmount {
+    switch (type) {
+    // مدين (ينقص الرصيد)
+      case WalletMovementType.purchaseAdd:
+      case WalletMovementType.expenseAdd:
+      case WalletMovementType.purchaseEditIncrease:
+      case WalletMovementType.expenseEditIncrease:
+      case WalletMovementType.adjustmentDebit:
+        return -amount;
+
+    // دائن (يزيد الرصيد)
+      case WalletMovementType.purchaseEditDecrease:
+      case WalletMovementType.expenseEditDecrease:
+      case WalletMovementType.walletTopUpFromWorker:
+      case WalletMovementType.adjustmentCredit:
+        return amount;
+    }
+  }
+
+  WalletMovement copyWith({
+    String? id,
+    String? dayId,
+    DateTime? createdAt,
+    WalletMovementType? type,
+    double? amount,
+    String? note,
+  }) {
+    return WalletMovement(
+      id: id ?? this.id,
+      dayId: dayId ?? this.dayId,
+      createdAt: createdAt ?? this.createdAt,
+      type: type ?? this.type,
+      amount: amount ?? this.amount,
+      note: note ?? this.note,
+    );
+  }
 
   Map<String, dynamic> toMap() => {
     'id': id,
@@ -78,24 +88,30 @@ class WalletMovement {
     'type': type.name,
     'amount': amount,
     'note': note,
-    'externalRefId': externalRefId,
-    'metadataOnly': metadataOnly,
   };
 
-  factory WalletMovement.fromMap(Map<String, dynamic> map) {
+  factory WalletMovement.fromMap(Map<String, dynamic> m) {
+    final tName = (m['type'] as String?) ?? 'adjustmentDebit';
+    final t = WalletMovementType.values.firstWhere(
+          (e) => e.name == tName,
+      orElse: () => WalletMovementType.adjustmentDebit,
+    );
     return WalletMovement(
-      id: map['id'] as String,
-      dayId: map['dayId'] as String,
-      createdAt: DateTime.parse(map['createdAt'] as String),
-      type: WalletMovementType.values
-          .firstWhere((e) => e.name == map['type']),
-      amount: (map['amount'] as num).toDouble(),
-      note: map['note'] as String?,
-      externalRefId: map['externalRefId'] as String?,
-      metadataOnly: (map['metadataOnly'] as bool?) ?? false,
+      id: m['id'] as String,
+      dayId: m['dayId'] as String,
+      createdAt: DateTime.parse(m['createdAt'] as String),
+      type: t,
+      amount: (m['amount'] as num).toDouble(),
+      note: m['note'] as String?,
     );
   }
+
+  String toJson() => jsonEncode(toMap());
+  static WalletMovement fromJson(String s) =>
+      WalletMovement.fromMap(jsonDecode(s) as Map<String, dynamic>);
 }
-// --- Compatibility aliases (keep old names working) ---
+
+// --- توافق رجعي مع أسماء قديمة حتى ما نعدلوش عشرات الملفات ---
+// (لو فيه ملفات تذكر WalletType أو WalletMovementModel ستظل تشتغل)
 typedef WalletType = WalletMovementType;
 typedef WalletMovementModel = WalletMovement;
