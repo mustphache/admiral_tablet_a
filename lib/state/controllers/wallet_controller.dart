@@ -3,7 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../../data/models/wallet_movement_model.dart';
 import '../services/outbox_service.dart';
 import '../../data/models/outbox_item_model.dart';
-import 'package:admiral_tablet_a/state/services/kv_store.dart';
+import '../services/kv_store.dart';
 
 class WalletController {
   WalletController._internal();
@@ -25,7 +25,7 @@ class WalletController {
     final list = await KvStore.getList(_kStore);
     _items
       ..clear()
-      ..addAll(list.map(_fromMap));
+      ..addAll(list.map((m) => WalletMovementModel.fromMap(m)));
     _loaded = true;
   }
 
@@ -33,10 +33,12 @@ class WalletController {
     await KvStore.setList(_kStore, _items.map((e) => e.toMap()).toList());
   }
 
+  /// مجموع اليوم باستخدام signedAmount الموحّد
   double totalForDay(String dayId) =>
-      _items.where((e) => e.dayId == dayId).fold(0.0, (s, e) => s + e.amount);
+      _items.where((e) => e.dayId == dayId).fold(0.0, (s, e) => s + e.signedAmount);
 
-  /// --------- نقطة مركزية لإضافة أي حركة + حارس منع التكرار ----------
+  // ----------------- نقطة مركزية + حارس منع التكرار -----------------
+
   Future<WalletMovementModel> addMovement({
     required String dayId,
     required WalletType type,
@@ -46,29 +48,29 @@ class WalletController {
     await load();
 
     final now = DateTime.now().toUtc();
+    final amt = amount.abs(); // نخزّن بدون إشارة، التوجيه عبر type فقط
 
-    // Idempotency guard: امنع التكرار العرضي لنفس الحركة خلال نافذة قصيرة
+    // Idempotency: منع تكرار نفس الحركة خلال نافذة قصيرة
     final exists = _items.any((m) =>
     m.dayId == dayId &&
         m.type == type &&
-        _isClose(m.createdAt, now) &&
-        _eqD(m.amount, amount) &&
-        (m.note ?? '') == (note ?? ''));
+        (m.note ?? '') == (note ?? '') &&
+        _eqD(m.amount, amt) &&
+        _isClose(m.createdAt, now));
     if (exists) {
-      // رجّع آخر نسخة مطابقة بدل ما نضيف واحدة ثانية
       return _items.lastWhere((m) =>
       m.dayId == dayId &&
           m.type == type &&
-          _isClose(m.createdAt, now) &&
-          _eqD(m.amount, amount) &&
-          (m.note ?? '') == (note ?? ''));
+          (m.note ?? '') == (note ?? '') &&
+          _eqD(m.amount, amt) &&
+          _isClose(m.createdAt, now));
     }
 
     final m = WalletMovementModel(
       id: _uuid.v4(),
       dayId: dayId,
       type: type,
-      amount: amount,
+      amount: amt,
       note: note,
       createdAt: now,
     );
@@ -86,11 +88,23 @@ class WalletController {
       ),
     );
 
-    // (Audit) موجود في نسختك – يظل كما هو
     return m;
   }
 
-  // حركات مشتقّة
+  // واجهات مختصرة موحّدة (الإشارة تُحدّد عبر النوع)
+  Future<WalletMovementModel> addCredit({
+    required String dayId,
+    required double amount,
+    String? note,
+  }) {
+    return addMovement(
+      dayId: dayId,
+      type: WalletType.credit,
+      amount: amount,
+      note: note ?? 'Incoming credit',
+    );
+  }
+
   Future<WalletMovementModel> addRefund({
     required String dayId,
     required double amount,
@@ -99,22 +113,8 @@ class WalletController {
     return addMovement(
       dayId: dayId,
       type: WalletType.refund,
-      amount: -amount.abs(),
-      note: note ?? 'Returned cash',
-    );
-  }
-
-  Future<WalletMovementModel> addCredit({
-    required String dayId,
-    required double amount,
-    String? note,
-  }) {
-    // رصيد وارد (موجب). أبقينا النوع Refund لأيقونة السهم الأخضر عندك
-    return addMovement(
-      dayId: dayId,
-      type: WalletType.refund,
-      amount: amount.abs(),
-      note: note ?? 'Incoming credit',
+      amount: amount,
+      note: note ?? 'Refund',
     );
   }
 
@@ -126,7 +126,7 @@ class WalletController {
     return addMovement(
       dayId: dayId,
       type: WalletType.purchase,
-      amount: -amount.abs(),
+      amount: amount,
       note: note ?? 'Purchase spend',
     );
   }
@@ -139,14 +139,12 @@ class WalletController {
     return addMovement(
       dayId: dayId,
       type: WalletType.expense,
-      amount: -amount.abs(),
+      amount: amount,
       note: note ?? 'Expense spend',
     );
   }
 
-  WalletMovementModel _fromMap(Map m) => WalletMovementModel.fromMap(m);
-
-  // ---------- أدوات مساعدة خاصة بالحارس ----------
+  // ----------------- أدوات مساعدة للحارس -----------------
   bool _isClose(DateTime a, DateTime b) =>
       (a.isBefore(b) ? b.difference(a) : a.difference(b)) <
           const Duration(seconds: 2);
