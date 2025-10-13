@@ -6,12 +6,21 @@ import 'package:admiral_tablet_a/ui/theme/app_theme.dart';
 import 'package:admiral_tablet_a/ui/theme/theme_controller.dart';
 import 'package:admiral_tablet_a/ui/app_routes.dart';
 
-// ✅ إضافة مؤكَّدة: تحميل حالة اليوم قبل بناء الواجهة
+// ✅ تحميل حالة اليوم قبل بناء الواجهة
 import 'package:admiral_tablet_a/core/session/index.dart';
 
-Future<void> main() async {
+// ✅ تهيئة خدمة المحفظة (repo + service)
+import 'package:admiral_tablet_a/state/services/init_wallet.dart';
+
+Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await DaySessionStore().load(); // ✅ استرجاع حالة اليوم قبل runApp
+
+  // ✅ التهيئة الضرورية للمحفظة
+  Services.I.init();
+
+  // ✅ استرجاع حالة اليوم قبل runApp
+  await DaySessionStore().load();
+
   runApp(const MyApp());
 }
 
