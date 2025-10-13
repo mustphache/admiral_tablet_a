@@ -96,3 +96,6 @@ class WalletMovement {
     );
   }
 }
+// --- Compatibility aliases (keep old names working) ---
+typedef WalletType = WalletMovementType;
+typedef WalletMovementModel = WalletMovement;
