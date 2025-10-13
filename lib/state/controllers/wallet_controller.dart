@@ -1,6 +1,5 @@
 import 'package:uuid/uuid.dart';
-
-import '../../data/models/wallet_movement_model.dart';
+import '../../data/models/wallet_movement.dart'; // ← كان wallet_movement_model.dart
 import '../services/outbox_service.dart';
 import '../../data/models/outbox_item_model.dart';
 import '../services/kv_store.dart';
@@ -11,16 +10,14 @@ class WalletController {
   factory WalletController() => _instance;
 
   static const _kStore = 'wallet_movements_store_v1';
-
   final _uuid = const Uuid();
   final _outbox = OutboxService();
-
   final List<WalletMovementModel> _items = [];
   bool _loaded = false;
 
   List<WalletMovementModel> get items => List.unmodifiable(_items);
 
-  Future<void> load() async {
+  Future load() async {
     if (_loaded) return;
     final list = await KvStore.getList(_kStore);
     _items
@@ -29,7 +26,7 @@ class WalletController {
     _loaded = true;
   }
 
-  Future<void> _persist() async {
+  Future _persist() async {
     await KvStore.setList(_kStore, _items.map((e) => e.toMap()).toList());
   }
 
@@ -38,8 +35,7 @@ class WalletController {
       _items.where((e) => e.dayId == dayId).fold(0.0, (s, e) => s + e.signedAmount);
 
   // ----------------- نقطة مركزية + حارس منع التكرار -----------------
-
-  Future<WalletMovementModel> addMovement({
+  Future addMovement({
     required String dayId,
     required WalletType type,
     required double amount,
@@ -74,7 +70,6 @@ class WalletController {
       note: note,
       createdAt: now,
     );
-
     _items.add(m);
     await _persist();
 
@@ -92,7 +87,7 @@ class WalletController {
   }
 
   // واجهات مختصرة موحّدة (الإشارة تُحدّد عبر النوع)
-  Future<WalletMovementModel> addCredit({
+  Future addCredit({
     required String dayId,
     required double amount,
     String? note,
@@ -105,7 +100,7 @@ class WalletController {
     );
   }
 
-  Future<WalletMovementModel> addRefund({
+  Future addRefund({
     required String dayId,
     required double amount,
     String? note,
@@ -118,7 +113,7 @@ class WalletController {
     );
   }
 
-  Future<WalletMovementModel> addSpendPurchase({
+  Future addSpendPurchase({
     required String dayId,
     required double amount,
     String? note,
@@ -131,7 +126,7 @@ class WalletController {
     );
   }
 
-  Future<WalletMovementModel> addSpendExpense({
+  Future addSpendExpense({
     required String dayId,
     required double amount,
     String? note,
@@ -146,8 +141,7 @@ class WalletController {
 
   // ----------------- أدوات مساعدة للحارس -----------------
   bool _isClose(DateTime a, DateTime b) =>
-      (a.isBefore(b) ? b.difference(a) : a.difference(b)) <
-          const Duration(seconds: 2);
+      (a.isBefore(b) ? b.difference(a) : a.difference(b)) < const Duration(seconds: 2);
 
   bool _eqD(double a, double b) => (a - b).abs() < 0.000001;
 }
