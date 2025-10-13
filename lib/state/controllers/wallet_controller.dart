@@ -1,4 +1,3 @@
-// lib/state/controllers/wallet_controller.dart
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -31,10 +30,7 @@ class WalletController extends ChangeNotifier {
   }
 
   Future<void> _persist() async {
-    await KvStore.setList(
-      _kStore,
-      _items.map((e) => e.toMap()).toList(),
-    );
+    await KvStore.setList(_kStore, _items.map((e) => e.toMap()).toList());
   }
 
   double totalForDay(String dayId) =>
@@ -86,40 +82,17 @@ class WalletController extends ChangeNotifier {
     return m;
   }
 
-  // Shortcuts متوافقة مع القيم الجديدة
-  Future addSpendPurchase({
-    required String dayId,
-    required double amount,
-    String? note,
-  }) =>
-      addMovement(
-        dayId: dayId,
-        type: WalletMovementType.purchaseAdd,
-        amount: amount,
-        note: note ?? 'Purchase spend',
-      );
+  // Shortcuts
+  Future addSpendPurchase({required String dayId, required double amount, String? note}) =>
+      addMovement(dayId: dayId, type: WalletMovementType.purchaseAdd, amount: amount, note: note ?? 'Purchase spend');
 
-  Future addSpendExpense({
-    required String dayId,
-    required double amount,
-    String? note,
-  }) =>
-      addMovement(
-        dayId: dayId,
-        type: WalletMovementType.expenseAdd,
-        amount: amount,
-        note: note ?? 'Expense spend',
-      );
+  Future addSpendExpense({required String dayId, required double amount, String? note}) =>
+      addMovement(dayId: dayId, type: WalletMovementType.expenseAdd, amount: amount, note: note ?? 'Expense spend');
 
-  Future addCredit({
-    required String dayId,
-    required double amount,
-    String? note,
-  }) =>
-      addMovement(
-        dayId: dayId,
-        type: WalletMovementType.walletTopUpFromWorker,
-        amount: amount,
-        note: note ?? 'Incoming credit',
-      );
+  Future addCredit({required String dayId, required double amount, String? note}) =>
+      addMovement(dayId: dayId, type: WalletMovementType.walletTopUpFromWorker, amount: amount, note: note ?? 'Incoming credit');
+
+  // ⬅️ المطلوبة في AddWalletMovementScreen
+  Future addRefund({required String dayId, required double amount, String? note}) =>
+      addMovement(dayId: dayId, type: WalletMovementType.adjustmentCredit, amount: amount, note: note ?? 'Refund');
 }
