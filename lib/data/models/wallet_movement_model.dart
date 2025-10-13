@@ -1,20 +1,17 @@
-// lib/data/models/wallet_movement_model.dart
-// نموذج حركة المحفظة + توحيد الإشارة عبر signedAmount
-
 enum WalletType {
-  credit,  // رصيد وارد (زيادة)
-  refund,  // استرجاع (زيادة)
-  purchase, // شراء (نقصان)
-  expense,  // مصروف (نقصان)
+  credit,
+  refund,
+  purchase,
+  expense,
 }
 
 class WalletMovementModel {
   final String id;
   final String dayId; // YYYY-MM-DD
   final WalletType type;
-  final double amount; // نخزّن دائمًا القيمة بالمطلق (بدون إشارة)
+  final double amount;
   final String? note;
-  final DateTime createdAt; // UTC
+  final DateTime createdAt;
 
   WalletMovementModel({
     required this.id,
@@ -25,8 +22,6 @@ class WalletMovementModel {
     required this.createdAt,
   });
 
-  /// الإشارة الموحّدة للعرض والحساب:
-  /// credit/refund => +amount | purchase/expense => -amount
   double get signedAmount {
     switch (type) {
       case WalletType.credit:
@@ -52,7 +47,6 @@ class WalletMovementModel {
           (e) => e.name == map['type'],
       orElse: () => WalletType.credit,
     );
-
     return WalletMovementModel(
       id: map['id'] as String,
       dayId: map['dayId'] as String,
