@@ -8,7 +8,7 @@ String mapWalletError(Object e) {
     return 'لا يوجد تغيير في القيمة — لا يمكن التأكيد.';
   }
   if (e is ImmutableCapitalError) {
-    return 'رأس المال المؤكّد لا يمكن تعديله أو حذفه.';
+    return 'رأس المال المؤكَّد لا يمكن تعديله أو حذفه.';
   }
   return 'حدث خطأ غير متوقع.';
 }
