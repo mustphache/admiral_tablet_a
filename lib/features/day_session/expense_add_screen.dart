@@ -4,14 +4,13 @@ import 'package:provider/provider.dart';
 import 'package:admiral_tablet_a/data/models/expense_model.dart';
 import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
 import 'package:admiral_tablet_a/state/controllers/expense_controller.dart';
-import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
 
 class ExpenseAddScreen extends StatefulWidget {
   final ExpenseModel? edit;
   const ExpenseAddScreen({super.key, this.edit});
 
   @override
-  State createState() => _ExpenseAddScreenState();
+  State<ExpenseAddScreen> createState() => _ExpenseAddScreenState();
 }
 
 class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
@@ -50,10 +49,12 @@ class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
 
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
+
     if (!_session.isOn || _session.current == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Session OFF — فعّلها من الشاشة الرئيسية')),
+      );
       return;
     }
 
@@ -72,14 +73,8 @@ class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
           note: note.isEmpty ? null : note,
           timestamp: DateTime.now(),
         );
-
+        // ✅ الكنترولر يسجّل حركة المحفظة بنفسه
         await ExpenseController().add(m);
-
-        await WalletController().addSpendExpense(
-          dayId: dayId,
-          amount: amount,
-          note: 'Expense #${m.id}',
-        );
       } else {
         final old = widget.edit!;
         final updated = ExpenseModel(
@@ -91,25 +86,8 @@ class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
           timestamp: old.timestamp,
         );
 
-        await ExpenseController().update(
-          id: old.id.toString(),
-          updated: updated,
-        );
-
-        final delta = amount - old.amount;
-        if (delta > 0) {
-          await WalletController().addSpendExpense(
-            dayId: dayId,
-            amount: delta,
-            note: 'Edit expense #${old.id} (delta)',
-          );
-        } else if (delta < 0) {
-          await WalletController().addRefund(
-            dayId: dayId,
-            amount: -delta,
-            note: 'Edit expense refund #${old.id}',
-          );
-        }
+        // ✅ التوقيع الجديد: update(updated: ...)
+        await ExpenseController().update(updated: updated);
       }
 
       if (!mounted) return;
@@ -129,18 +107,23 @@ class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
 
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: Text(widget.edit == null ? 'إضافة مصروف' : 'تعديل مصروف')),
+        appBar: AppBar(
+          title: Text(widget.edit == null ? 'إضافة مصروف' : 'تعديل مصروف'),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    return ChangeNotifierProvider<DaySessionController>.value(
+    return ChangeNotifierProvider.value(
       value: _session,
       child: Consumer<DaySessionController>(
         builder: (_, s, __) {
           final canWrite = s.isOn;
+
           return Scaffold(
-            appBar: AppBar(title: Text(widget.edit == null ? 'إضافة مصروف' : 'تعديل مصروف')),
+            appBar: AppBar(
+              title: Text(widget.edit == null ? 'إضافة مصروف' : 'تعديل مصروف'),
+            ),
             body: Form(
               key: _form,
               child: ListView(
@@ -149,21 +132,23 @@ class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
                   if (!canWrite)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child:
-                      Text('Session OFF — القراءة فقط', style: TextStyle(color: cs.outline)),
+                      child: Text('Session OFF — القراءة فقط',
+                          style: TextStyle(color: cs.outline)),
                     ),
                   TextFormField(
                     controller: _kind,
                     decoration: const InputDecoration(labelText: 'النوع'),
                     textInputAction: TextInputAction.next,
                     enabled: canWrite,
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'أدخل النوع' : null,
+                    validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'أدخل النوع' : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _amount,
                     decoration: const InputDecoration(labelText: 'المبلغ'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                     enabled: canWrite,
                     validator: (v) {
                       final n = double.tryParse((v ?? '').trim());
@@ -174,7 +159,8 @@ class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _note,
-                    decoration: const InputDecoration(labelText: 'ملاحظات (اختياري)'),
+                    decoration:
+                    const InputDecoration(labelText: 'ملاحظات (اختياري)'),
                     minLines: 1,
                     maxLines: 3,
                     enabled: canWrite,
@@ -183,7 +169,8 @@ class _ExpenseAddScreenState extends State<ExpenseAddScreen> {
                   FilledButton.icon(
                     onPressed: (!canWrite || _busy) ? null : _save,
                     icon: const Icon(Icons.save),
-                    label: _busy ? const Text('جارٍ الحفظ…') : const Text('حفظ'),
+                    label:
+                    _busy ? const Text('جارٍ الحفظ…') : const Text('حفظ'),
                   ),
                 ],
               ),
