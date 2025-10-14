@@ -9,14 +9,25 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+/// StatefulWidget بتوقيع صحيح + setLocale مدعومة
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  /// دالة شكلية مؤقتًا باش نسكّت الـ lang switcher.
-  /// ما تبدّلش اللغة الآن — نخلوها لمرحلة الواجهة.
+  /// يستعملها الـ lang_switcher: MyApp.setLocale(context, locale)
   static void setLocale(BuildContext context, Locale locale) {
-    // TODO: تفعيل تبديل اللغة لاحقًا بعد ما نكمّل المنطق.
-    // حالياً No-op حتى نركّزو على الحسابات/الحفظ فقط.
+    final state = context.findAncestorStateOfType<_MyAppState>();
+    state?._setLocale(locale);
+  }
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  Locale? _locale;
+
+  void _setLocale(Locale locale) {
+    setState(() => _locale = locale);
   }
 
   @override
@@ -25,7 +36,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Admiral Tablet',
 
-      // ترجمة (موجودة عندك ومش حنبدلو اللغة runtime الآن)
+      // الترجمات
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -33,8 +44,9 @@ class MyApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
+      locale: _locale, // إن بقيت null يستعمل لغة النظام
 
-      // ثيم بسيط مؤقتًا
+      // ثيم مؤقت
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
