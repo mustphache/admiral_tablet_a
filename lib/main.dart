@@ -79,7 +79,7 @@ class _MyAppState extends State<MyApp> {
       // 🧭 الراوتس
       routes: AppRoutes.routes,
       onGenerateRoute: AppRoutes.onGenerateRoute,
-      initialRoute: AppRoutes.login, // يبدأ بالقفل ثم Home
+      initialRoute: AppRoutes.login,
     );
   }
 }
