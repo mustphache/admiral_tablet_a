@@ -18,7 +18,7 @@ class ExpenseController {
 
   Future<void> load() async {
     if (_loaded) return;
-    // TODO: تحميل من التخزين عندك
+    // TODO: تحميل من التخزين عندك (إن وُجد)
     _loaded = true;
   }
 
@@ -29,23 +29,27 @@ class ExpenseController {
   List<ExpenseModel> getByDay(String dayId) => listByDay(dayId);
 
   double totalForDay(String dayId) =>
-      listByDay(dayId).fold(0.0, (s, e) => s + (e.amount));
+      listByDay(dayId).fold(0.0, (s, e) => s + e.amount);
 
   Future<ExpenseModel> add(ExpenseModel e) async {
     await load();
-    final created = e.copyWith(id: e.id.isEmpty ? _uuid.v4() : e.id);
+    final created = e.copyWith(
+      id: (e.id?.isEmpty ?? true) ? _uuid.v4() : e.id!,
+    );
     _items.add(created);
 
+    // إضافة مصروف = مدين
     await WalletController().addMovement(
       dayId: created.sessionId,
       type: WalletMovementType.expenseAdd,
       amount: created.amount.abs(),
       note: 'Expense add (${created.id})',
     );
+
     return created;
   }
 
-  // التوقيع المطلوب في الشاشات: update(updated: ...)
+  /// التوقيع المطلوب في الشاشات: update(updated: ...)
   Future<ExpenseModel?> update({required ExpenseModel updated}) async {
     await load();
     final idx = _items.indexWhere((x) => x.id == updated.id);
@@ -54,7 +58,8 @@ class ExpenseController {
     final old = _items[idx];
     _items[idx] = updated;
 
-    final delta = (updated.amount - old.amount);
+    // فرق المحفظة: الزيادة تخصم، النقصان يُعاد للمحفظة
+    final delta = updated.amount - old.amount;
     if (delta != 0) {
       if (delta > 0) {
         await WalletController().addMovement(
@@ -72,6 +77,7 @@ class ExpenseController {
         );
       }
     }
+
     return updated;
   }
 
@@ -81,6 +87,7 @@ class ExpenseController {
     if (idx == -1) return;
     final removed = _items.removeAt(idx);
 
+    // حذف مصروف: نعيد المبلغ للمحفظة كدائن
     await WalletController().addMovement(
       dayId: removed.sessionId,
       type: WalletMovementType.expenseDeleteRefund,
