@@ -22,6 +22,7 @@ class AppRoutes {
   // المفاتيح الأساسية
   static const String home = '/';            // ← الشاشة الرئيسية
   static const String login = '/login';      // شاشة القفل/الدخول
+  static const String devWipe = '/dev/wipe';
 
   // أخرى
   static const String daySession = '/day-session';
