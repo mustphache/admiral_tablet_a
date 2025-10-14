@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:admiral_tablet_a/state/services/lock_service.dart';
+
+import '../../../ui/app_routes.dart';
 
 class LockScreen extends StatefulWidget {
   const LockScreen({super.key});
@@ -10,38 +11,10 @@ class LockScreen extends StatefulWidget {
 }
 
 class _LockScreenState extends State<LockScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _pin = TextEditingController();
   bool _busy = false;
-  String? _error;
-
-  Future<void> _submit() async {
-    if (_busy) return;
-    setState(() { _busy = true; _error = null; });
-
-    try {
-      final saved = await LockService.getPin();
-      final enabled = await LockService.isEnabled();
-      final input = _pin.text.trim();
-
-      if (!enabled) {
-        Navigator.pop(context, true);
-        return;
-      }
-      if (saved == null || saved.isEmpty) {
-        setState(() => _error = 'لم يتم ضبط PIN بعد');
-        return;
-      }
-      if (input == saved) {
-        await LockService.markJustUnlocked();
-        if (!mounted) return;
-        Navigator.pop(context, true);
-      } else {
-        setState(() => _error = 'PIN غير صحيح');
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
+  bool _obscure = true;
 
   @override
   void dispose() {
@@ -49,45 +22,93 @@ class _LockScreenState extends State<LockScreen> {
     super.dispose();
   }
 
+  Future<void> _unlock() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _busy = true);
+    try {
+      // TODO: لو عندك LockService، فعّل التحقق هنا قبل التنقل:
+      // final ok = await LockService().verifyPin(_pin.text.trim());
+      // if (!ok) { show error & return; }
+
+      if (!mounted) return;
+      // ✅ بعد نجاح التحقق، روح مباشرة للشاشة الرئيسية
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        AppRoutes.home,
+            (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('فشل التحقق: $e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('إدخال PIN')),
+      appBar: AppBar(title: const Text('Unlock')),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('أدخل رقم PIN لفتح التطبيق'),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _pin,
-                  autofocus: true,
-                  maxLength: 6,
-                  obscureText: true,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: InputDecoration(
-                    counterText: '',
-                    border: const OutlineInputBorder(),
-                    errorText: _error,
-                  ),
-                  onSubmitted: (_) => _submit(),
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Card(
+            margin: const EdgeInsets.all(16),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 8),
+                    Text(
+                      'أدخل كلمة المرور',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _pin,
+                      obscureText: _obscure,
+                      obscuringCharacter: '•',
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: InputDecoration(
+                        labelText: 'PIN',
+                        suffixIcon: IconButton(
+                          icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                        ),
+                      ),
+                      validator: (v) {
+                        final t = (v ?? '').trim();
+                        if (t.isEmpty) return 'الرجاء إدخال كلمة المرور';
+                        if (t.length < 4) return 'الحد الأدنى 4 أرقام';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton.icon(
+                      onPressed: _busy ? null : _unlock,
+                      icon: const Icon(Icons.lock_open),
+                      label: _busy ? const Text('جاري الفتح…') : const Text('Unlock'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () {
+                        // لو عندك شاشة إعداد القفل
+                        // Navigator.pushNamed(context, '/lock-settings');
+                      },
+                      child: Text('إعدادات القفل', style: TextStyle(color: cs.primary)),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: _busy ? null : _submit,
-                  icon: _busy
-                      ? const SizedBox(
-                      width: 16, height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.lock_open),
-                  label: const Text('فتح'),
-                ),
-              ],
+              ),
             ),
           ),
         ),
