@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-import '../../../ui/app_routes.dart';
+import 'package:admiral_tablet_a/ui/app_routes.dart';
 
 class LockScreen extends StatefulWidget {
   const LockScreen({super.key});
@@ -27,20 +26,12 @@ class _LockScreenState extends State<LockScreen> {
 
     setState(() => _busy = true);
     try {
-      // TODO: لو عندك LockService، فعّل التحقق هنا قبل التنقل:
-      // final ok = await LockService().verifyPin(_pin.text.trim());
-      // if (!ok) { show error & return; }
-
+      // TODO: LockService().verifyPin(_pin.text.trim());
       if (!mounted) return;
-      // ✅ بعد نجاح التحقق، روح مباشرة للشاشة الرئيسية
       Navigator.of(context).pushNamedAndRemoveUntil(
         AppRoutes.home,
             (route) => false,
       );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('فشل التحقق: $e')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -65,10 +56,7 @@ class _LockScreenState extends State<LockScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const SizedBox(height: 8),
-                    Text(
-                      'أدخل كلمة المرور',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
+                    Text('أدخل كلمة المرور', style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _pin,
@@ -97,14 +85,12 @@ class _LockScreenState extends State<LockScreen> {
                       label: _busy ? const Text('جاري الفتح…') : const Text('Unlock'),
                     ),
                     const SizedBox(height: 8),
+                    // 🔧 زر DEV للوصول السريع لصفحة التصفير
                     TextButton(
                       onPressed: _busy
                           ? null
-                          : () {
-                        // لو عندك شاشة إعداد القفل
-                        // Navigator.pushNamed(context, '/lock-settings');
-                      },
-                      child: Text('إعدادات القفل', style: TextStyle(color: cs.primary)),
+                          : () => Navigator.pushNamed(context, AppRoutes.devWipe),
+                      child: Text('تصفير (DEV)', style: TextStyle(color: cs.primary)),
                     ),
                   ],
                 ),
