@@ -1,19 +1,43 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
 
 import 'ui/app_routes.dart';
 import 'l10n/generated/app_localizations.dart';
 
+// ⬅️ كنترولرات تحتاج Provider فوق الشجرة
+import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
+import 'package:admiral_tablet_a/state/controllers/day_session_controller.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  runApp(const AppBootstrap());
 }
 
-/// StatefulWidget بتوقيع صحيح + setLocale مدعومة
+/// نغلّف MyApp بـ MultiProvider باش يكون WalletController متاح في كل الراوتس
+class AppBootstrap extends StatelessWidget {
+  const AppBootstrap({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<WalletController>(
+          create: (_) => WalletController(),
+        ),
+        ChangeNotifierProvider<DaySessionController>(
+          create: (_) => DaySessionController(),
+        ),
+      ],
+      child: const MyApp(),
+    );
+  }
+}
+
+/// Stateful مع setLocale (للـ lang_switcher) + MaterialApp
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  /// يستعملها الـ lang_switcher: MyApp.setLocale(context, locale)
   static void setLocale(BuildContext context, Locale locale) {
     final state = context.findAncestorStateOfType<_MyAppState>();
     state?._setLocale(locale);
@@ -36,7 +60,7 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       title: 'Admiral Tablet',
 
-      // الترجمات
+      // 🗣️ الترجمات (نبدل runtime عبر MyApp.setLocale لما تحب)
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -44,18 +68,18 @@ class _MyAppState extends State<MyApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
-      locale: _locale, // إن بقيت null يستعمل لغة النظام
+      locale: _locale,
 
-      // ثيم مؤقت
+      // 🎨 ثيم مؤقت
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
       ),
 
-      // الراوتس
+      // 🧭 الراوتس
       routes: AppRoutes.routes,
       onGenerateRoute: AppRoutes.onGenerateRoute,
-      initialRoute: AppRoutes.login, // يبدأ بالقفل ثم يروح للـ Home
+      initialRoute: AppRoutes.login, // يبدأ بالقفل ثم Home
     );
   }
 }
