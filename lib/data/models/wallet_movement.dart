@@ -19,7 +19,7 @@ enum WalletMovementType {
   // حذف/استرجاع
   purchaseDeleteRefund,
   expenseDeleteRefund,
-  purchaseDeleteReject,    // متروك للتوافق
+  purchaseDeleteReject, // متروك للتوافق
 
   // تحويلات داخلية
   walletTopUpFromWorker,
@@ -29,14 +29,43 @@ enum WalletMovementType {
   // تسويات/توثيق
   adjustmentCredit,
   adjustmentDebit,
-  capitalConfirmed,        // متروك للتوافق
+  capitalConfirmed, // متروك للتوافق
+}
+
+/// امتداد لتلبية استدعاءات wallet_service: enum.isCredit
+extension WalletMovementTypeX on WalletMovementType {
+  bool get isCredit {
+    switch (this) {
+    // تزيد الرصيد (دائنة)
+      case WalletMovementType.purchaseEditDecrease:
+      case WalletMovementType.expenseEditDecrease:
+      case WalletMovementType.purchaseDeleteRefund:
+      case WalletMovementType.expenseDeleteRefund:
+      case WalletMovementType.walletTopUpFromWorker:
+      case WalletMovementType.walletReturnToManager:
+      case WalletMovementType.adjustmentCredit:
+      case WalletMovementType.capitalConfirmed:
+      case WalletMovementType.purchaseDeleteReject:
+        return true;
+
+    // تنقص الرصيد (مدينة)
+      case WalletMovementType.purchaseAdd:
+      case WalletMovementType.expenseAdd:
+      case WalletMovementType.purchaseEditIncrease:
+      case WalletMovementType.expenseEditIncrease:
+      case WalletMovementType.walletDecreaseLoss:
+      case WalletMovementType.adjustmentDebit:
+        return false;
+    }
+  }
 }
 
 class WalletMovement {
   final String id;
   final String dayId;
-  final DateTime createdAt;     // UTC
+  final DateTime createdAt; // UTC
   final WalletMovementType type;
+
   /// يُخزَّن دائمًا موجب؛ الإشارة تُستنتج من النوع.
   final double amount;
   final String? note;
@@ -44,7 +73,7 @@ class WalletMovement {
   // حقول إضافية لتوافق الخدمات
   final String? externalRefId;
   final bool metadataOnly;
-  final bool isCredit;
+  final bool isCredit; // احتفاظ للتوافق مع تخزين سابق إن كان موجود
   final bool isEmpty;
 
   const WalletMovement({
@@ -133,7 +162,8 @@ class WalletMovement {
     return WalletMovement(
       id: m['id'] as String,
       dayId: m['dayId'] as String,
-      createdAt: DateTime.tryParse(m['createdAt'] ?? '') ?? DateTime.now().toUtc(),
+      createdAt:
+      DateTime.tryParse(m['createdAt']?.toString() ?? '') ?? DateTime.now().toUtc(),
       type: t,
       amount: (m['amount'] as num?)?.toDouble() ?? 0.0,
       note: m['note'] as String?,
