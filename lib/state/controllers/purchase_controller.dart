@@ -18,7 +18,7 @@ class PurchaseController {
 
   Future<void> load() async {
     if (_loaded) return;
-    // TODO: تحميل من التخزين عندك
+    // TODO: تحميل من التخزين عندك (إن وُجد)
     _loaded = true;
   }
 
@@ -28,23 +28,27 @@ class PurchaseController {
   List<PurchaseModel> getByDay(String dayId) => listByDay(dayId);
 
   double totalForDay(String dayId) =>
-      listByDay(dayId).fold(0.0, (s, p) => s + (p.total));
+      listByDay(dayId).fold(0.0, (s, p) => s + p.total);
 
   Future<PurchaseModel> add(PurchaseModel p) async {
     await load();
-    final created = p.copyWith(id: p.id.isEmpty ? _uuid.v4() : p.id);
+    final created = p.copyWith(
+      id: (p.id?.isEmpty ?? true) ? _uuid.v4() : p.id!,
+    );
     _items.add(created);
 
+    // تسجّل الحركة المناسبة (مدين)
     await WalletController().addMovement(
       dayId: created.sessionId,
       type: WalletMovementType.purchaseAdd,
       amount: created.total.abs(),
       note: 'Purchase add (${created.id})',
     );
+
     return created;
   }
 
-  // التوقيع المطلوب: update(updated: ...)
+  /// التوقيع المطلوب في الشاشات: update(updated: ...)
   Future<PurchaseModel?> update({required PurchaseModel updated}) async {
     await load();
     final idx = _items.indexWhere((x) => x.id == updated.id);
@@ -53,7 +57,8 @@ class PurchaseController {
     final old = _items[idx];
     _items[idx] = updated;
 
-    final delta = (updated.total - old.total);
+    // فرق المحفظة: الزيادة تخصم، النقصان يُعاد للمحفظة
+    final delta = updated.total - old.total;
     if (delta != 0) {
       if (delta > 0) {
         await WalletController().addMovement(
@@ -71,6 +76,7 @@ class PurchaseController {
         );
       }
     }
+
     return updated;
   }
 
@@ -80,6 +86,7 @@ class PurchaseController {
     if (idx == -1) return;
     final removed = _items.removeAt(idx);
 
+    // حذف شراء: نعيد المبلغ للمحفظة كدائن
     await WalletController().addMovement(
       dayId: removed.sessionId,
       type: WalletMovementType.purchaseDeleteRefund,
