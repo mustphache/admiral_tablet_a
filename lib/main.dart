@@ -12,13 +12,20 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  /// دالة شكلية مؤقتًا باش نسكّت الـ lang switcher.
+  /// ما تبدّلش اللغة الآن — نخلوها لمرحلة الواجهة.
+  static void setLocale(BuildContext context, Locale locale) {
+    // TODO: تفعيل تبديل اللغة لاحقًا بعد ما نكمّل المنطق.
+    // حالياً No-op حتى نركّزو على الحسابات/الحفظ فقط.
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Admiral Tablet',
 
-      // 🔤 الترجمة (موجودة عندك في lib/l10n/generated/)
+      // ترجمة (موجودة عندك ومش حنبدلو اللغة runtime الآن)
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -27,18 +34,16 @@ class MyApp extends StatelessWidget {
       ],
       supportedLocales: AppLocalizations.supportedLocales,
 
-      // 🎨 ثيم افتراضي بسيط (بدون الاعتماد على ملفات ثيم خاصة حتى ما يكسرش)
+      // ثيم بسيط مؤقتًا
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
       ),
 
-      // 🧭 الراوتس
+      // الراوتس
       routes: AppRoutes.routes,
       onGenerateRoute: AppRoutes.onGenerateRoute,
-
-      // ⛳️ يبدأ بشاشة القفل (Lock)
-      initialRoute: AppRoutes.login,
+      initialRoute: AppRoutes.login, // يبدأ بالقفل ثم يروح للـ Home
     );
   }
 }
