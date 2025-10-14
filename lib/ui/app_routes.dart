@@ -21,7 +21,7 @@ import '../features/wallet/screens/wallet_screen.dart';
 import '../features/wallet/screens/wallet_movements_screen.dart';
 import '../features/wallet/screens/add_wallet_movement_screen.dart';
 
-// ========== Dev (اختياري للتجارب) ==========
+// ========== Dev ==========
 import '../features/dev/dev_wipe_screen.dart';
 
 class AppRoutes {
@@ -46,9 +46,7 @@ class AppRoutes {
   // Dev
   static const String devWipe = '/dev/wipe';
 
-  /// الخريطة الأساسية للراوتات
   static final Map<String, WidgetBuilder> routes = {
-    // البداية الفعلية تكون من main.dart عبر initialRoute: AppRoutes.login
     home: (_) => const HomeScreen(),
     login: (_) => const LockScreen(),
     lockSettings: (_) => const LockSettingsScreen(),
@@ -67,13 +65,11 @@ class AppRoutes {
     devWipe: (_) => const DevWipeScreen(),
   };
 
-  /// onGenerateRoute كـ fallback و لدعم أي توسعات لاحقاً
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     final builder = routes[settings.name];
     if (builder != null) {
       return MaterialPageRoute(builder: builder, settings: settings);
     }
-    // مسار غير معروف → رجّع Home
     return MaterialPageRoute(builder: (_) => const HomeScreen());
   }
 }
