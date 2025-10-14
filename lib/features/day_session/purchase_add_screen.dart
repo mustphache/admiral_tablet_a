@@ -34,7 +34,7 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
       final m = widget.edit;
       if (m != null) {
         _supplier.text = m.supplier;
-        _tagNumber.text = m.tagNumber;
+        _tagNumber.text = m.tagNumber ?? ''; // ✅ fix: String? → String
         _price.text = m.price.toStringAsFixed(2);
         _count.text = m.count.toString();
         _note.text = m.note ?? '';
@@ -76,7 +76,7 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
           id: DateTime.now().microsecondsSinceEpoch.toString(),
           sessionId: _session.current!.id,
           supplier: _supplier.text.trim(),
-          tagNumber: _tagNumber.text.trim(),
+          tagNumber: _tagNumber.text.trim().isEmpty ? null : _tagNumber.text.trim(),
           price: price,
           count: count,
           total: total,
@@ -90,7 +90,7 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
           id: old.id,
           sessionId: old.sessionId,
           supplier: _supplier.text.trim(),
-          tagNumber: _tagNumber.text.trim(),
+          tagNumber: _tagNumber.text.trim().isEmpty ? null : _tagNumber.text.trim(),
           price: price,
           count: count,
           total: total,
@@ -158,7 +158,7 @@ class _PurchaseAddScreenState extends State<PurchaseAddScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _tagNumber,
-                    decoration: const InputDecoration(labelText: 'رقم الخاتم'),
+                    decoration: const InputDecoration(labelText: 'رقم الخاتم (اختياري)'),
                     textInputAction: TextInputAction.next,
                     enabled: canWrite,
                   ),
