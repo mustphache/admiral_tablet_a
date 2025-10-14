@@ -1,91 +1,44 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:provider/provider.dart';
-import 'package:admiral_tablet_a/state/controllers/wallet_controller.dart';
-import 'package:admiral_tablet_a/l10n/generated/app_localizations.dart';
-import 'package:admiral_tablet_a/ui/theme/app_theme.dart';
-import 'package:admiral_tablet_a/ui/theme/theme_controller.dart';
-import 'package:admiral_tablet_a/ui/app_routes.dart';
 
-// ✅ تحميل حالة اليوم قبل بناء الواجهة
-import 'package:admiral_tablet_a/core/session/index.dart';
+import 'ui/app_routes.dart';
+import 'l10n/generated/app_localizations.dart';
 
-// ✅ تهيئة خدمة المحفظة (repo + service)
-import 'package:admiral_tablet_a/state/services/init_wallet.dart';
-
-Future main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // ✅ التهيئة الضرورية للمحفظة
-  Services.I.init();
-
-  // ✅ استرجاع حالة اليوم قبل runApp
-  await DaySessionStore().load();
-
   runApp(const MyApp());
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
-  /// لتغيير اللغة من أي ويدجت (يستعملها LangSwitcher)
-  static void setLocale(BuildContext context, Locale newLocale) {
-    final _MyAppState? state = context.findAncestorStateOfType<_MyAppState>();
-    state?.setLocale(newLocale);
-  }
-
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  /// لو تحب اعتماد لغة النظام اتركها null
-  Locale? _locale = const Locale('en');
-
-  void setLocale(Locale locale) {
-    setState(() => _locale = locale);
-  }
 
   @override
   Widget build(BuildContext context) {
-    final themeCtrl = ThemeController.instance;
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Admiral Tablet',
 
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeCtrl.mode,
-      builder: (_, themeMode, __) {
-        return MaterialApp(
-          title: 'ADMIRAL — Tablet A',
-          debugShowCheckedModeBanner: false,
+      // 🔤 الترجمة (موجودة عندك في lib/l10n/generated/)
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
 
-          // اللغات والترجمة
-          locale: _locale,
-          supportedLocales: AppLocalizations.supportedLocales,
-          localizationsDelegates: const [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
+      // 🎨 ثيم افتراضي بسيط (بدون الاعتماد على ملفات ثيم خاصة حتى ما يكسرش)
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+      ),
 
-          // fallback لو لغة الجهاز غير مدعومة
-          localeResolutionCallback: (deviceLocale, supported) {
-            if (deviceLocale == null) return supported.first;
-            for (final l in supported) {
-              if (l.languageCode == deviceLocale.languageCode) return l;
-            }
-            return supported.first;
-          },
+      // 🧭 الراوتس
+      routes: AppRoutes.routes,
+      onGenerateRoute: AppRoutes.onGenerateRoute,
 
-          // الثيم كما في مشروعك
-          theme: AppTheme.light(),
-          darkTheme: AppTheme.dark(),
-          themeMode: themeMode,
-
-          // الراوتينغ كما هو في الريبو
-          onGenerateRoute: AppRoutes.onGenerateRoute,
-          initialRoute: AppRoutes.login,
-        );
-      },
+      // ⛳️ يبدأ بشاشة القفل (Lock)
+      initialRoute: AppRoutes.login,
     );
   }
 }
