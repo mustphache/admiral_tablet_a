@@ -1,0 +1,78 @@
+Project core tree (with RAW GitHub links)
+Repository: https://github.com/mustphache/admiral_tablet_a
+Generated: 2025-10-14 19:43:15
+
+.
+- .gitignore -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/.gitignore
+- analysis_options.yaml -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/analysis_options.yaml
+- Autopush.ps1 -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/Autopush.ps1
+      - lib/common/constants/app_constants.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/common/constants/app_constants.dart
+      - lib/common/helpers/amount_helpers.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/common/helpers/amount_helpers.dart
+      - lib/common/helpers/error_mapper.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/common/helpers/error_mapper.dart
+      - lib/common/helpers/snapshot_service.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/common/helpers/snapshot_service.dart
+      - lib/common/helpers/utils.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/common/helpers/utils.dart
+      - lib/core/money/money.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/core/money/money.dart
+      - lib/core/policy/permissions.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/core/policy/permissions.dart
+      - lib/core/session/day_session_gate.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/core/session/day_session_gate.dart
+      - lib/core/session/day_session_model.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/core/session/day_session_model.dart
+      - lib/core/session/day_session_store.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/core/session/day_session_store.dart
+      - lib/core/session/day_status_indicator.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/core/session/day_status_indicator.dart
+      - lib/core/session/index.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/core/session/index.dart
+      - lib/core/storage/keys.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/core/storage/keys.dart
+      - lib/core/time/time_formats.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/core/time/time_formats.dart
+      - lib/data/db/local_db.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/data/db/local_db.dart
+      - lib/data/db/wallet_repository.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/data/db/wallet_repository.dart
+      - lib/data/db/wallet_repository_memory.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/data/db/wallet_repository_memory.dart
+      - lib/data/models/audit_event_model.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/data/models/audit_event_model.dart
+      - lib/data/models/day_session_model.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/data/models/day_session_model.dart
+      - lib/data/models/expense_model.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/data/models/expense_model.dart
+      - lib/data/models/outbox_item_model.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/data/models/outbox_item_model.dart
+      - lib/data/models/purchase_model.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/data/models/purchase_model.dart
+      - lib/data/models/wallet_movement.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/data/models/wallet_movement.dart
+      - lib/data/models/wallet_quick_kind.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/data/models/wallet_quick_kind.dart
+      - lib/data/models/wallet_state.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/data/models/wallet_state.dart
+        - lib/features/a_day/screens/a_day_summary_screen.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/features/a_day/screens/a_day_summary_screen.dart
+        - lib/features/auth/screens/lock_screen.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/features/auth/screens/lock_screen.dart
+        - lib/features/auth/screens/lock_settings_screen.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/features/auth/screens/lock_settings_screen.dart
+        - lib/features/auth/screens/login_screen.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/features/auth/screens/login_screen.dart
+      - lib/features/day_session/day_session_screen.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/features/day_session/day_session_screen.dart
+      - lib/features/day_session/expense_add_screen.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/features/day_session/expense_add_screen.dart
+      - lib/features/day_session/expenses_screen.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/features/day_session/expenses_screen.dart
+      - lib/features/day_session/purchase_add_screen.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/features/day_session/purchase_add_screen.dart
+      - lib/features/day_session/purchases_screen.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/features/day_session/purchases_screen.dart
+      - lib/features/day_session/report_pdf.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/features/day_session/report_pdf.dart
+      - lib/features/day_session/reports_screen.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/features/day_session/reports_screen.dart
+      - lib/features/dev/dev_wipe_screen.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/features/dev/dev_wipe_screen.dart
+        - lib/features/home/screens/home_screen.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/features/home/screens/home_screen.dart
+        - lib/features/wallet/screens/add_wallet_movement_screen.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/features/wallet/screens/add_wallet_movement_screen.dart
+        - lib/features/wallet/screens/wallet_movements_screen.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/features/wallet/screens/wallet_movements_screen.dart
+        - lib/features/wallet/screens/wallet_screen.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/features/wallet/screens/wallet_screen.dart
+  - lib/main.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/main.dart
+      - lib/state/controllers/day_session_controller.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/state/controllers/day_session_controller.dart
+      - lib/state/controllers/day_session_store.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/state/controllers/day_session_store.dart
+      - lib/state/controllers/expense_controller.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/state/controllers/expense_controller.dart
+      - lib/state/controllers/purchase_controller.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/state/controllers/purchase_controller.dart
+      - lib/state/controllers/wallet_controller.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/state/controllers/wallet_controller.dart
+      - lib/state/services/audit_log_service.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/state/services/audit_log_service.dart
+      - lib/state/services/credit_inbox_store.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/state/services/credit_inbox_store.dart
+      - lib/state/services/dev_reset.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/state/services/dev_reset.dart
+      - lib/state/services/errors.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/state/services/errors.dart
+      - lib/state/services/init_wallet.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/state/services/init_wallet.dart
+      - lib/state/services/kv_store.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/state/services/kv_store.dart
+      - lib/state/services/lock_service.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/state/services/lock_service.dart
+      - lib/state/services/outbox_service.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/state/services/outbox_service.dart
+      - lib/state/services/storage_service.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/state/services/storage_service.dart
+      - lib/state/services/wallet_service.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/state/services/wallet_service.dart
+    - lib/ui/app_routes.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/ui/app_routes.dart
+      - lib/ui/theme/app_colors.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/ui/theme/app_colors.dart
+      - lib/ui/theme/app_shapes.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/ui/theme/app_shapes.dart
+      - lib/ui/theme/app_spacing.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/ui/theme/app_spacing.dart
+      - lib/ui/theme/app_theme.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/ui/theme/app_theme.dart
+      - lib/ui/theme/app_typography.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/ui/theme/app_typography.dart
+      - lib/ui/theme/theme_controller.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/ui/theme/theme_controller.dart
+      - lib/ui/widgets/app_scaffold.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/ui/widgets/app_scaffold.dart
+      - lib/ui/widgets/lang_switcher.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/ui/widgets/lang_switcher.dart
+      - lib/ui/widgets/section_title.dart -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/lib/ui/widgets/section_title.dart
+- pubspec.lock -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/pubspec.lock
+- pubspec.yaml -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/pubspec.yaml
+- README.md -> https://raw.githubusercontent.com/mustphache/admiral_tablet_a/refs/heads/main/README.md
